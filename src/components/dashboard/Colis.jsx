@@ -246,13 +246,6 @@ const Colis = () => {
   // Function to export page to PDF
   const exportToPDF = async () => {
     try {
-      // Get the main content element
-      const element = document.getElementById('colis-content');
-      if (!element) {
-        alert('Erreur: Impossible de trouver le contenu à exporter');
-        return;
-      }
-
       // Show loading message
       const loadingMessage = document.createElement('div');
       loadingMessage.style.cssText = `
@@ -270,48 +263,198 @@ const Colis = () => {
       loadingMessage.textContent = 'Génération du PDF en cours...';
       document.body.appendChild(loadingMessage);
 
-      // Create canvas from the element
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
+      // Create PDF document
+      const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape orientation for better table fit
+      
+      // Set font
+      pdf.setFont('helvetica');
+      
+      // Add title
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Rapport des Colis - QuickZone', 14, 20);
+      
+      // Add export info
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Date d'export: ${new Date().toLocaleString('fr-FR')}`, 14, 30);
+      pdf.text(`Utilisateur: ${currentUser?.name || currentUser?.email || 'Non spécifié'}`, 14, 35);
+      pdf.text(`Nombre de colis: ${filteredParcels.length}`, 14, 40);
+      
+      // Add summary statistics
+      const deliveredCount = filteredParcels.filter(p => p.status === 'Livrés' || p.status === 'Livrés payés').length;
+      const inProgressCount = filteredParcels.filter(p => p.status === 'En cours' || p.status === 'Au dépôt').length;
+      const totalValue = filteredParcels.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+      
+      pdf.text(`Colis livrés: ${deliveredCount}`, 14, 50);
+      pdf.text(`Colis en cours: ${inProgressCount}`, 14, 55);
+      pdf.text(`Valeur totale: ${formatValue(totalValue)} DT`, 14, 60);
+      
+      // Define table headers
+      const headers = [
+        'N° Colis',
+        'N° Suivi', 
+        'Expéditeur',
+        'Code Exp.',
+        'Destination',
+        'Statut',
+        'Poids (kg)',
+        'Type',
+        'Prix (DT)',
+        'Frais Liv.',
+        'Date création'
+      ];
+      
+      // Calculate column widths (landscape A4: 297mm width, 14mm margins = 269mm available)
+      const pageWidth = 297 - 28; // 14mm margins on each side
+      const colWidths = [
+        15, // N° Colis
+        25, // N° Suivi
+        30, // Expéditeur
+        20, // Code Exp.
+        35, // Destination
+        20, // Statut
+        15, // Poids (kg)
+        15, // Type
+        20, // Prix (DT)
+        20, // Frais Liv.
+        25  // Date création
+      ];
+      
+      // Starting position
+      let y = 75;
+      const startX = 14;
+      
+      // Draw table header
+      pdf.setFillColor(200, 200, 200);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      
+      let x = startX;
+      headers.forEach((header, index) => {
+        pdf.rect(x, y, colWidths[index], 8, 'F');
+        pdf.text(header, x + 2, y + 5);
+        x += colWidths[index];
       });
-
+      
+      // Draw table data
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      
+      let rowCount = 0;
+      const maxRowsPerPage = 20; // Adjust based on font size and row height
+      
+      filteredParcels.forEach((parcel, index) => {
+        // Check if we need a new page
+        if (rowCount >= maxRowsPerPage) {
+          pdf.addPage();
+          y = 20; // Reset Y position for new page
+          rowCount = 0;
+          
+          // Redraw header on new page
+          pdf.setFillColor(200, 200, 200);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          x = startX;
+          headers.forEach((header, headerIndex) => {
+            pdf.rect(x, y, colWidths[headerIndex], 8, 'F');
+            pdf.text(header, x + 2, y + 5);
+            x += colWidths[headerIndex];
+          });
+          y += 8;
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7);
+        }
+        
+        y += 6; // Row height
+        rowCount++;
+        
+        // Draw row data
+        x = startX;
+        
+        // N° Colis
+        pdf.text(parcel.id?.toString() || '', x + 1, y);
+        x += colWidths[0];
+        
+        // N° Suivi
+        pdf.text(parcel.tracking_number || '', x + 1, y);
+        x += colWidths[1];
+        
+        // Expéditeur
+        const shipperName = parcel.shipper_name || '';
+        pdf.text(shipperName.length > 20 ? shipperName.substring(0, 17) + '...' : shipperName, x + 1, y);
+        x += colWidths[2];
+        
+        // Code Exp.
+        pdf.text(parcel.shipper_code || '', x + 1, y);
+        x += colWidths[3];
+        
+        // Destination
+        const destination = parcel.destination || '';
+        pdf.text(destination.length > 25 ? destination.substring(0, 22) + '...' : destination, x + 1, y);
+        x += colWidths[4];
+        
+        // Statut
+        pdf.text(parcel.status || '', x + 1, y);
+        x += colWidths[5];
+        
+        // Poids (kg)
+        pdf.text(parcel.weight ? `${parseFloat(parcel.weight).toFixed(2)}` : '', x + 1, y);
+        x += colWidths[6];
+        
+        // Type
+        pdf.text(parcel.type || '', x + 1, y);
+        x += colWidths[7];
+        
+        // Prix (DT)
+        pdf.text(parcel.price ? `${parseFloat(parcel.price).toFixed(2)}` : '', x + 1, y);
+        x += colWidths[8];
+        
+        // Frais Liv.
+        pdf.text(parcel.delivery_fees ? `${parseFloat(parcel.delivery_fees).toFixed(2)}` : '', x + 1, y);
+        x += colWidths[9];
+        
+        // Date création
+        const createdDate = parcel.created_date ? new Date(parcel.created_date).toLocaleDateString('fr-FR') : '';
+        pdf.text(createdDate, x + 1, y);
+      });
+      
+      // Add summary page at the end
+      pdf.addPage();
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Résumé des Colis', 14, 20);
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Total des colis: ${filteredParcels.length}`, 14, 40);
+      pdf.text(`Colis livrés: ${deliveredCount}`, 14, 50);
+      pdf.text(`Colis en cours: ${inProgressCount}`, 14, 60);
+      pdf.text(`Colis en attente: ${filteredParcels.filter(p => p.status === 'En attente').length}`, 14, 70);
+      pdf.text(`Valeur totale: ${formatValue(totalValue)} DT`, 14, 80);
+      pdf.text(`Frais de livraison totaux: ${formatValue(filteredParcels.reduce((sum, p) => sum + (parseFloat(p.delivery_fees) || 0), 0))} DT`, 14, 90);
+      pdf.text(`Date d'export: ${new Date().toLocaleString('fr-FR')}`, 14, 100);
+      pdf.text(`Utilisateur: ${currentUser?.name || currentUser?.email || 'Non spécifié'}`, 14, 110);
+      
       // Remove loading message
       document.body.removeChild(loadingMessage);
-
-      // Create PDF
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
       
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
       // Save the PDF
-      const fileName = `colis_${new Date().toISOString().split('T')[0]}.pdf`;
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `Colis_QuickZone_${currentDate}.pdf`;
       pdf.save(fileName);
       
-      alert('PDF exporté avec succès!');
+      // Show success message
+      const totalParcels = parcelsData?.length || 0;
+      const exportedCount = filteredParcels.length;
+      const filterMessage = exportedCount < totalParcels ?
+        `\n\n⚠️ Note: ${exportedCount} colis exportés sur ${totalParcels} total (filtres appliqués)` :
+        `\n\n✅ Tous les colis ont été exportés`;
+      
+      alert(`✅ Export PDF réussi!\n\nFichier: ${fileName}\n\nNombre de colis exportés: ${exportedCount}${filterMessage}`);
     } catch (error) {
-      console.error('Erreur lors de l\'export PDF:', error);
-      alert('Erreur lors de l\'export PDF. Veuillez réessayer.');
+      console.error('❌ Erreur lors de l\'export PDF:', error);
+      alert('❌ Erreur lors de l\'export PDF. Veuillez réessayer.');
     }
   };
 

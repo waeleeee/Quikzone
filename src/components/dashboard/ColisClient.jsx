@@ -10,6 +10,7 @@ import { useAppStore } from "../../stores/useAppStore";
 import { useForm } from "react-hook-form";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import jsPDF from 'jspdf';
 import { apiService } from "../../services/api";
 
 const ColisClient = () => {
@@ -599,6 +600,194 @@ const ColisClient = () => {
     }
   };
 
+  // Function to export to PDF
+  const exportToPDF = async () => {
+    try {
+      if (!statusModal.parcels.length) {
+        alert('❌ Aucun colis à exporter pour ce statut');
+        return;
+      }
+
+      // Show loading message
+      const loadingMessage = document.createElement('div');
+      loadingMessage.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 9999;
+        font-size: 16px;
+      `;
+      loadingMessage.textContent = 'Génération du PDF en cours...';
+      document.body.appendChild(loadingMessage);
+
+      // Create PDF document
+      const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape orientation for better table fit
+      
+      // Set font
+      pdf.setFont('helvetica');
+      
+      // Add title
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Rapport des Colis - ${statusModal.status}`, 14, 20);
+      
+      // Add export info
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Date d'export: ${new Date().toLocaleString('fr-FR')}`, 14, 30);
+      pdf.text(`Expéditeur: ${currentUser?.name || currentUser?.email || 'Non spécifié'}`, 14, 35);
+      pdf.text(`Nombre de colis: ${statusModal.parcels.length}`, 14, 40);
+      pdf.text(`Statut: ${statusModal.status}`, 14, 45);
+      
+      // Calculate total value
+      const totalValue = statusModal.parcels.reduce((sum, p) => {
+        const price = parseFloat(p.price?.replace(' DT', '') || 0);
+        return sum + price;
+      }, 0);
+      
+      pdf.text(`Valeur totale: ${totalValue.toFixed(2)} DT`, 14, 50);
+      
+      // Define table headers
+      const headers = [
+        'N° Colis',
+        'Expéditeur',
+        'Destination',
+        'Poids',
+        'Date création',
+        'Prix (DT)',
+        'Référence'
+      ];
+      
+      // Calculate column widths (landscape A4: 297mm width, 14mm margins = 269mm available)
+      const colWidths = [
+        20, // N° Colis
+        35, // Expéditeur
+        40, // Destination
+        20, // Poids
+        25, // Date création
+        25, // Prix (DT)
+        30  // Référence
+      ];
+      
+      // Starting position
+      let y = 65;
+      const startX = 14;
+      
+      // Draw table header
+      pdf.setFillColor(200, 200, 200);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      
+      let x = startX;
+      headers.forEach((header, index) => {
+        pdf.rect(x, y, colWidths[index], 8, 'F');
+        pdf.text(header, x + 2, y + 5);
+        x += colWidths[index];
+      });
+      
+      // Draw table data
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      
+      let rowCount = 0;
+      const maxRowsPerPage = 20; // Adjust based on font size and row height
+      
+      statusModal.parcels.forEach((parcel, index) => {
+        // Check if we need a new page
+        if (rowCount >= maxRowsPerPage) {
+          pdf.addPage();
+          y = 20; // Reset Y position for new page
+          rowCount = 0;
+          
+          // Redraw header on new page
+          pdf.setFillColor(200, 200, 200);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8);
+          x = startX;
+          headers.forEach((header, headerIndex) => {
+            pdf.rect(x, y, colWidths[headerIndex], 8, 'F');
+            pdf.text(header, x + 2, y + 5);
+            x += colWidths[headerIndex];
+          });
+          y += 8;
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7);
+        }
+        
+        y += 6; // Row height
+        rowCount++;
+        
+        // Draw row data
+        x = startX;
+        
+        // N° Colis
+        pdf.text(parcel.id?.toString() || '', x + 1, y);
+        x += colWidths[0];
+        
+        // Expéditeur
+        const shipperName = parcel.shipper || '';
+        pdf.text(shipperName.length > 25 ? shipperName.substring(0, 22) + '...' : shipperName, x + 1, y);
+        x += colWidths[1];
+        
+        // Destination
+        const destination = parcel.destination || '';
+        pdf.text(destination.length > 30 ? destination.substring(0, 27) + '...' : destination, x + 1, y);
+        x += colWidths[2];
+        
+        // Poids
+        const weight = parcel.weight?.replace(' kg', '') || '';
+        pdf.text(weight, x + 1, y);
+        x += colWidths[3];
+        
+        // Date création
+        pdf.text(parcel.dateCreated || '', x + 1, y);
+        x += colWidths[4];
+        
+        // Prix (DT)
+        const price = parcel.price?.replace(' DT', '') || '';
+        pdf.text(price, x + 1, y);
+        x += colWidths[5];
+        
+        // Référence
+        const reference = parcel.reference || '';
+        pdf.text(reference.length > 20 ? reference.substring(0, 17) + '...' : reference, x + 1, y);
+      });
+      
+      // Add summary page at the end
+      pdf.addPage();
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Résumé des Colis', 14, 20);
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Statut: ${statusModal.status}`, 14, 40);
+      pdf.text(`Nombre de colis: ${statusModal.parcels.length}`, 14, 50);
+      pdf.text(`Valeur totale: ${totalValue.toFixed(2)} DT`, 14, 60);
+      pdf.text(`Date d'export: ${new Date().toLocaleString('fr-FR')}`, 14, 70);
+      pdf.text(`Expéditeur: ${currentUser?.name || currentUser?.email || 'Non spécifié'}`, 14, 80);
+      
+      // Remove loading message
+      document.body.removeChild(loadingMessage);
+      
+      // Save the PDF
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `Colis_${statusModal.status}_${currentUser?.name || 'Client'}_${currentDate}.pdf`;
+      pdf.save(filename);
+      
+      // Show success message
+      alert(`✅ Export PDF réussi!\n\nFichier: ${filename}\n\nNombre de colis exportés: ${statusModal.parcels.length}\n\nStatut: ${statusModal.status}`);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'export PDF:', error);
+      alert('❌ Erreur lors de l\'export PDF. Veuillez réessayer.');
+    }
+  };
+
   if (loadingParcels) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1165,9 +1354,21 @@ const ColisClient = () => {
           <div className="flex justify-end space-x-3">
             <button
               onClick={exportToExcel}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
             >
-              Exporter en Excel
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exporter Excel
+            </button>
+            <button
+              onClick={exportToPDF}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exporter PDF
             </button>
             <button
               onClick={() => setStatusModal({ open: false, status: null, parcels: [] })}
