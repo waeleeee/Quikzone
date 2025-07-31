@@ -96,6 +96,27 @@ const getCurrentUserData = async () => {
   };
 };
 
+// Function to search expéditeurs by code, name, or phone
+const searchExpediteurs = async (searchTerm) => {
+  try {
+    const shippersResponse = await apiService.getShippers();
+    
+    if (!searchTerm.trim()) return [];
+    
+    // Search by code, name, or phone (case-insensitive)
+    const matchingExpediteurs = shippersResponse.filter(s => 
+      (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.phone && s.phone.includes(searchTerm))
+    );
+    
+    return matchingExpediteurs.slice(0, 10); // Limit to 10 results
+  } catch (error) {
+    console.error('❌ Error searching expéditeurs:', error);
+    return [];
+  }
+};
+
 // Function to get expediteur data by code, name, or phone
 const getExpediteurBySearch = async (searchTerm) => {
   try {
@@ -162,6 +183,9 @@ const ColisCreate = ({ onClose }) => {
   const [coordinatesLoading, setCoordinatesLoading] = useState(false);
   const [expediteurCode, setExpediteurCode] = useState("");
   const [expediteurLoading, setExpediteurLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [colis, setColis] = useState({
     // Expéditeur
     dateCollecte: "",
@@ -214,6 +238,64 @@ const ColisCreate = ({ onClose }) => {
         maximumAge: 300000 // 5 minutes
       }
     );
+  };
+
+  // Function to handle expediteur search with debouncing
+  const handleExpediteurSearch = async (searchTerm) => {
+    setExpediteurCode(searchTerm);
+    
+    if (searchTerm.trim().length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    
+    // Clear previous timeout
+    if (window.searchTimeout) {
+      clearTimeout(window.searchTimeout);
+    }
+    
+    // Debounce the search to avoid too many API calls
+    window.searchTimeout = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const results = await searchExpediteurs(searchTerm);
+        setSearchResults(results);
+        setShowDropdown(results.length > 0);
+      } catch (error) {
+        console.error('Error searching expéditeurs:', error);
+        setSearchResults([]);
+        setShowDropdown(false);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300); // 300ms delay
+  };
+
+  // Function to select an expediteur from dropdown
+  const selectExpediteur = async (expediteur) => {
+    setExpediteurCode(expediteur.name || expediteur.code || expediteur.phone);
+    setShowDropdown(false);
+    setSearchResults([]);
+    
+    // Load expediteur data
+    const expediteurData = await getExpediteurBySearch(expediteur.name || expediteur.code || expediteur.phone);
+    
+    if (expediteurData) {
+      setColis(prev => ({
+        ...prev,
+        societe: expediteurData.societe,
+        matriculeFiscal: expediteurData.matriculeFiscal,
+        expediteurNom: expediteurData.expediteurNom,
+        expediteurTel: expediteurData.expediteurTel,
+        expediteurGouv: expediteurData.expediteurGouv,
+        expediteurAdresse: expediteurData.expediteurAdresse,
+        fraisLivraison: (parseFloat(expediteurData.baseFraisLivraison) || 8).toFixed(2),
+      }));
+      alert('✅ Informations de l\'expéditeur chargées avec succès!');
+    } else {
+      alert('❌ Erreur lors du chargement des informations de l\'expéditeur.');
+    }
   };
 
   // Function to load expediteur data by search term (code, name, or phone)
@@ -290,7 +372,8 @@ const ColisCreate = ({ onClose }) => {
   };
 
   const handleExpediteurCodeChange = (e) => {
-    setExpediteurCode(e.target.value);
+    const value = e.target.value;
+    handleExpediteurSearch(value);
   };
 
   const handleExpediteurCodeSubmit = (e) => {
@@ -455,7 +538,7 @@ const ColisCreate = ({ onClose }) => {
           <div className="w-full flex flex-col items-center">
             <h3 className="font-bold text-2xl mb-6 text-blue-700 tracking-wide text-center">EXPÉDITEUR</h3>
             <div className="space-y-4 w-full">
-              <div>
+              <div className="relative">
                 <label className="block text-base font-semibold text-gray-700 mb-1">
                   <span className="flex items-center">
                     <span className="mr-2">🔍</span>
@@ -463,19 +546,63 @@ const ColisCreate = ({ onClose }) => {
                   </span>
                 </label>
                 <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    name="expediteurCode"
-                    value={expediteurCode}
-                    onChange={handleExpediteurCodeChange}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleExpediteurCodeSubmit(e);
-                      }
-                    }}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Code, nom ou téléphone"
-                  />
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      name="expediteurCode"
+                      value={expediteurCode}
+                      onChange={handleExpediteurCodeChange}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleExpediteurCodeSubmit(e);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (searchResults.length > 0) {
+                          setShowDropdown(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay hiding dropdown to allow clicking on items
+                        setTimeout(() => setShowDropdown(false), 200);
+                      }}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${searchLoading ? 'bg-blue-50' : ''}`}
+                      placeholder={searchLoading ? "Recherche en cours..." : "Code, nom ou téléphone"}
+                    />
+                    {/* Dropdown for search results */}
+                    {showDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {searchResults.length > 0 ? (
+                          searchResults.map((expediteur, index) => (
+                            <div
+                              key={index}
+                              className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              onClick={() => selectExpediteur(expediteur)}
+                            >
+                              <div className="font-medium text-gray-900">
+                                {expediteur.name || expediteur.code || expediteur.phone}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {expediteur.code && <span className="mr-2">Code: {expediteur.code}</span>}
+                                {expediteur.phone && <span>Tél: {expediteur.phone}</span>}
+                              </div>
+                            </div>
+                          ))
+                        ) : searchLoading ? (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                              Recherche en cours...
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 text-gray-500 text-center">
+                            Aucun expéditeur trouvé
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleExpediteurCodeSubmit}
@@ -487,7 +614,7 @@ const ColisCreate = ({ onClose }) => {
                   </button>
                 </div>
                 <small className="text-xs text-gray-500 mt-1 block">
-                  💡 Entrez le code, nom ou téléphone de l'expéditeur pour charger automatiquement ses informations
+                  💡 Tapez le code, nom ou téléphone de l'expéditeur pour voir les suggestions
                 </small>
               </div>
               <div>
