@@ -513,25 +513,90 @@ const ColisClient = () => {
   };
 
   const exportToExcel = () => {
-    if (!statusModal.parcels.length) return;
-    
-    const worksheet = XLSX.utils.json_to_sheet(statusModal.parcels.map(p => ({
-      'N° Colis': p.id,
-      'Expéditeur': p.shipper,
-      'Destination': p.destination,
-      'Statut': p.status,
-      'Poids': p.weight,
-      'Date de création': p.dateCreated,
-      'Date de livraison estimée': p.estimatedDelivery,
-      'Prix': p.price,
-    })));
-    
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Colis_${statusModal.status}`);
-    
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, `colis_${statusModal.status}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    try {
+      if (!statusModal.parcels.length) {
+        alert('❌ Aucun colis à exporter pour ce statut');
+        return;
+      }
+      
+      // Prepare data for Excel export
+      const excelData = statusModal.parcels.map(p => ({
+        'N° Colis': p.id || '',
+        'N° Suivi': p.tracking_number || p.id || '',
+        'Expéditeur': p.shipper || '',
+        'Destination': p.destination || '',
+        'Statut': p.status || '',
+        'Poids (kg)': p.weight ? p.weight.replace(' kg', '') : '',
+        'Date de création': p.dateCreated || '',
+        'Date de livraison estimée': p.estimatedDelivery || '',
+        'Prix (DT)': p.price ? p.price.replace(' DT', '') : '',
+        'Téléphone': p.phone || '',
+        'Email': p.email || '',
+        'Référence': p.reference || '',
+        'Description': p.description || '',
+        'Code Client': p.client_code || ''
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Add header styling (bold headers)
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!worksheet[address]) continue;
+        worksheet[address].s = { font: { bold: true }, fill: { fgColor: { rgb: "CCCCCC" } } };
+      }
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 8 },   // N° Colis
+        { wch: 15 },  // N° Suivi
+        { wch: 20 },  // Expéditeur
+        { wch: 30 },  // Destination
+        { wch: 12 },  // Statut
+        { wch: 10 },  // Poids (kg)
+        { wch: 12 },  // Date de création
+        { wch: 12 },  // Date de livraison estimée
+        { wch: 12 },  // Prix (DT)
+        { wch: 15 },  // Téléphone
+        { wch: 25 },  // Email
+        { wch: 15 },  // Référence
+        { wch: 20 },  // Description
+        { wch: 15 }   // Code Client
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Colis_${statusModal.status}`);
+
+      // Create summary worksheet
+      const summaryData = [
+        { 'Statistique': 'Statut', 'Valeur': statusModal.status },
+        { 'Statistique': 'Nombre de colis', 'Valeur': excelData.length },
+        { 'Statistique': 'Valeur totale (DT)', 'Valeur': excelData.reduce((sum, p) => sum + (parseFloat(p['Prix (DT)']) || 0), 0).toFixed(2) },
+        { 'Statistique': 'Date d\'export', 'Valeur': new Date().toLocaleString('fr-FR') },
+        { 'Statistique': 'Expéditeur', 'Valeur': currentUser?.name || currentUser?.email || 'Non spécifié' }
+      ];
+
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      summaryWorksheet['!cols'] = [{ wch: 30 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Résumé');
+
+      // Generate filename
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `Colis_${statusModal.status}_${currentUser?.name || 'Client'}_${currentDate}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(workbook, filename);
+
+      // Show success message
+      alert(`✅ Export Excel réussi!\n\nFichier: ${filename}\n\nNombre de colis exportés: ${excelData.length}\n\nStatut: ${statusModal.status}`);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'export Excel:', error);
+      alert('❌ Erreur lors de l\'export Excel. Veuillez réessayer.');
+    }
   };
 
   if (loadingParcels) {

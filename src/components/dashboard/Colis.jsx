@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { apiService } from "../../services/api";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as XLSX from 'xlsx';
 
 // Function to format numbers with 3 digits before decimal and 3 after
 const formatValue = (value) => {
@@ -134,58 +135,112 @@ const Colis = () => {
     "Retour reçu",
   ];
 
-  // Export to Excel function
+  // Export to Excel function with proper formatting
   const exportToExcel = () => {
-    const headers = [
-      'N° Colis', 'N° Suivi', 'Expéditeur', 'Code Expéditeur', 'Destination', 'Statut',
-      'Poids (kg)', 'Type', 'Prix (DT)', 'Frais Livraison', 'Frais Retour',
-      'Date de création', 'Date estimée', 'Date réelle', 'Téléphone', 'Email', 'Société'
-    ];
-    
-    // Create Excel content with proper formatting
-    let excelContent = '';
-    
-    // Add headers
-    excelContent += headers.join('\t') + '\n';
-    
-    // Add data rows
-    filteredParcels.forEach(parcel => {
-      const row = [
-        parcel.id,
-        parcel.tracking_number,
-        parcel.shipper_name,
-        parcel.shipper_code,
-        parcel.destination,
-        parcel.status,
-        parcel.weight,
-        parcel.type,
-        parcel.price,
-        parcel.delivery_fees,
-        parcel.return_fees,
-        parcel.created_date,
-        parcel.estimated_delivery_date,
-        parcel.actual_delivery_date,
-        parcel.shipper_phone,
-        parcel.shipper_email,
-        parcel.shipper_company
-      ].join('\t');
-      excelContent += row + '\n';
-    });
-    
-    // Create BOM for Excel UTF-8 compatibility
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + excelContent], { 
-      type: 'application/vnd.ms-excel;charset=utf-8;' 
-    });
-    
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `colis_${new Date().toISOString().split('T')[0]}.xls`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      // Prepare data for Excel export
+      const excelData = filteredParcels.map(parcel => ({
+        'N° Colis': parcel.id || '',
+        'N° Suivi': parcel.tracking_number || '',
+        'Expéditeur': parcel.shipper_name || '',
+        'Code Expéditeur': parcel.shipper_code || '',
+        'Destination': parcel.destination || '',
+        'Statut': parcel.status || '',
+        'Poids (kg)': parcel.weight ? parseFloat(parcel.weight).toFixed(2) : '',
+        'Type': parcel.type || '',
+        'Prix (DT)': parcel.price ? parseFloat(parcel.price).toFixed(2) : '',
+        'Frais Livraison': parcel.delivery_fees ? parseFloat(parcel.delivery_fees).toFixed(2) : '',
+        'Frais Retour': parcel.return_fees ? parseFloat(parcel.return_fees).toFixed(2) : '',
+        'Date de création': parcel.created_date ? new Date(parcel.created_date).toLocaleDateString('fr-FR') : '',
+        'Date estimée': parcel.estimated_delivery_date ? new Date(parcel.estimated_delivery_date).toLocaleDateString('fr-FR') : '',
+        'Date réelle': parcel.actual_delivery_date ? new Date(parcel.actual_delivery_date).toLocaleDateString('fr-FR') : '',
+        'Téléphone': parcel.shipper_phone || '',
+        'Email': parcel.shipper_email || '',
+        'Société': parcel.shipper_company || '',
+        'Adresse': parcel.shipper_address || '',
+        'Gouvernorat': parcel.shipper_governorate || '',
+        'Article': parcel.article_name || '',
+        'Remarque': parcel.remark || '',
+        'Nombre de pièces': parcel.nb_pieces || 1
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Add header styling (bold headers)
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: 0, c: C });
+        if (!worksheet[address]) continue;
+        worksheet[address].s = { font: { bold: true }, fill: { fgColor: { rgb: "CCCCCC" } } };
+      }
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 8 },   // N° Colis
+        { wch: 15 },  // N° Suivi
+        { wch: 20 },  // Expéditeur
+        { wch: 15 },  // Code Expéditeur
+        { wch: 30 },  // Destination
+        { wch: 12 },  // Statut
+        { wch: 10 },  // Poids (kg)
+        { wch: 12 },  // Type
+        { wch: 12 },  // Prix (DT)
+        { wch: 15 },  // Frais Livraison
+        { wch: 12 },  // Frais Retour
+        { wch: 12 },  // Date de création
+        { wch: 12 },  // Date estimée
+        { wch: 12 },  // Date réelle
+        { wch: 15 },  // Téléphone
+        { wch: 25 },  // Email
+        { wch: 20 },  // Société
+        { wch: 30 },  // Adresse
+        { wch: 15 },  // Gouvernorat
+        { wch: 20 },  // Article
+        { wch: 30 },  // Remarque
+        { wch: 15 }   // Nombre de pièces
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Colis');
+
+      // Create summary worksheet
+      const summaryData = [
+        { 'Statistique': 'Total des colis', 'Valeur': excelData.length },
+        { 'Statistique': 'Colis livrés', 'Valeur': excelData.filter(p => p.Statut === 'Livrés' || p.Statut === 'Livrés payés').length },
+        { 'Statistique': 'Colis en cours', 'Valeur': excelData.filter(p => p.Statut === 'En cours' || p.Statut === 'Au dépôt').length },
+        { 'Statistique': 'Colis en attente', 'Valeur': excelData.filter(p => p.Statut === 'En attente').length },
+        { 'Statistique': 'Valeur totale (DT)', 'Valeur': excelData.reduce((sum, p) => sum + (parseFloat(p['Prix (DT)']) || 0), 0).toFixed(2) },
+        { 'Statistique': 'Frais de livraison totaux (DT)', 'Valeur': excelData.reduce((sum, p) => sum + (parseFloat(p['Frais Livraison']) || 0), 0).toFixed(2) },
+        { 'Statistique': 'Date d\'export', 'Valeur': new Date().toLocaleString('fr-FR') },
+        { 'Statistique': 'Utilisateur', 'Valeur': currentUser?.name || currentUser?.email || 'Non spécifié' }
+      ];
+
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      summaryWorksheet['!cols'] = [{ wch: 30 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Résumé');
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `Colis_QuickZone_${currentDate}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(workbook, filename);
+
+      // Show success message
+      const totalParcels = parcelsData?.length || 0;
+      const exportedCount = excelData.length;
+      const filterMessage = exportedCount < totalParcels ? 
+        `\n\n⚠️ Note: ${exportedCount} colis exportés sur ${totalParcels} total (filtres appliqués)` : 
+        `\n\n✅ Tous les colis ont été exportés`;
+      
+      alert(`✅ Export Excel réussi!\n\nFichier: ${filename}\n\nNombre de colis exportés: ${exportedCount}${filterMessage}`);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'export Excel:', error);
+      alert('❌ Erreur lors de l\'export Excel. Veuillez réessayer.');
+    }
   };
 
   // Function to export page to PDF
