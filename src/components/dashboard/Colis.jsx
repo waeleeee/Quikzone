@@ -31,6 +31,27 @@ const formatValue = (value) => {
   return `${paddedInteger}.${decimalPart}`;
 };
 
+// Function to search expéditeurs by code, name, or phone
+const searchExpediteurs = async (searchTerm) => {
+  try {
+    const shippersResponse = await apiService.getShippers();
+    
+    if (!searchTerm.trim()) return [];
+    
+    // Search by code, name, or phone (case-insensitive)
+    const matchingExpediteurs = shippersResponse.filter(s => 
+      (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.phone && s.phone.includes(searchTerm))
+    );
+    
+    return matchingExpediteurs.slice(0, 10); // Limit to 10 results
+  } catch (error) {
+    console.error('❌ Error searching expéditeurs:', error);
+    return [];
+  }
+};
+
 const Colis = () => {
   const location = useLocation();
   const { parcels, loading, selectedParcel, setSelectedParcel } = useAppStore();
@@ -72,6 +93,11 @@ const Colis = () => {
 
   const [userAgency, setUserAgency] = useState(null);
   const [shippersByAgency, setShippersByAgency] = useState({});
+
+  // Smart search states for Expéditeur field
+  const [shipperSearchResults, setShipperSearchResults] = useState([]);
+  const [showShipperDropdown, setShowShipperDropdown] = useState(false);
+  const [shipperSearchLoading, setShipperSearchLoading] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -747,6 +773,47 @@ const Colis = () => {
     }));
   };
 
+  // Smart search handler for Expéditeur field
+  const handleShipperSearch = async (searchTerm) => {
+    if (searchTerm.trim().length < 2) {
+      setShipperSearchResults([]);
+      setShowShipperDropdown(false);
+      return;
+    }
+    
+    // Clear previous timeout
+    if (window.shipperSearchTimeout) {
+      clearTimeout(window.shipperSearchTimeout);
+    }
+    
+    // Debounce the search to avoid too many API calls
+    window.shipperSearchTimeout = setTimeout(async () => {
+      setShipperSearchLoading(true);
+      try {
+        const results = await searchExpediteurs(searchTerm);
+        setShipperSearchResults(results);
+        setShowShipperDropdown(results.length > 0);
+      } catch (error) {
+        console.error('Error searching expéditeurs:', error);
+        setShipperSearchResults([]);
+        setShowShipperDropdown(false);
+      } finally {
+        setShipperSearchLoading(false);
+      }
+    }, 300); // 300ms delay
+  };
+
+  // Function to select an expéditeur from dropdown
+  const selectShipper = (expediteur) => {
+    const shipperName = expediteur.name || expediteur.code || expediteur.phone;
+    setAdvancedFilters(prev => ({
+      ...prev,
+      shipper: shipperName
+    }));
+    setShowShipperDropdown(false);
+    setShipperSearchResults([]);
+  };
+
   // For tracking modal
   const [trackingParcel, setTrackingParcel] = useState(null);
   const handleRowClick = (parcel) => {
@@ -928,14 +995,65 @@ const Colis = () => {
               className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             
-            <input
-              type="text"
-              name="shipper"
-              value={advancedFilters.shipper}
-              onChange={handleAdvancedFilterChange}
-              placeholder="Expéditeur"
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                name="shipper"
+                value={advancedFilters.shipper}
+                onChange={(e) => {
+                  const { name, value } = e.target;
+                  setAdvancedFilters((prev) => ({
+                    ...prev,
+                    [name]: value,
+                  }));
+                  handleShipperSearch(value);
+                }}
+                onFocus={() => {
+                  if (shipperSearchResults.length > 0) {
+                    setShowShipperDropdown(true);
+                  }
+                }}
+                onBlur={() => {
+                  // Delay hiding dropdown to allow clicking on items
+                  setTimeout(() => setShowShipperDropdown(false), 200);
+                }}
+                placeholder={shipperSearchLoading ? "Recherche en cours..." : "Expéditeur"}
+                className={`border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 ${shipperSearchLoading ? 'bg-blue-50' : ''}`}
+              />
+              {/* Dropdown for search results */}
+              {showShipperDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {shipperSearchResults.length > 0 ? (
+                    shipperSearchResults.map((expediteur, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => selectShipper(expediteur)}
+                      >
+                        <div className="font-medium text-gray-900">
+                          {expediteur.name || expediteur.code || expediteur.phone}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {expediteur.code && <span className="mr-2">Code: {expediteur.code}</span>}
+                          {expediteur.phone && <span>Tél: {expediteur.phone}</span>}
+                        </div>
+                      </div>
+                    ))
+                  ) : shipperSearchLoading ? (
+                    <div className="px-4 py-3 text-gray-500 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        Recherche en cours...
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-center">
+                      Aucun expéditeur trouvé
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             
             <input
               type="text"
