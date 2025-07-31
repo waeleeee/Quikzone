@@ -244,7 +244,7 @@ const ColisCreate = ({ onClose }) => {
   const handleExpediteurSearch = async (searchTerm) => {
     setExpediteurCode(searchTerm);
     
-    if (searchTerm.trim().length < 2) {
+    if (searchTerm.trim().length < 1) {
       setSearchResults([]);
       setShowDropdown(false);
       return;

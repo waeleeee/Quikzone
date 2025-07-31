@@ -775,7 +775,7 @@ const Colis = () => {
 
   // Smart search handler for Expéditeur field
   const handleShipperSearch = async (searchTerm) => {
-    if (searchTerm.trim().length < 2) {
+    if (searchTerm.trim().length < 1) {
       setShipperSearchResults([]);
       setShowShipperDropdown(false);
       return;
