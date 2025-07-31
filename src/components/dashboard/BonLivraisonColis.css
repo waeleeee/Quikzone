@@ -1,0 +1,321 @@
+.delivery-note-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.delivery-note {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e5e5e5;
+}
+
+.logo-section {
+  flex: 1;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+}
+
+.header-info {
+  flex: 2;
+  text-align: center;
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.tracking-number {
+  font-size: 14px;
+  font-weight: bold;
+  color: #666;
+  margin-top: 5px;
+}
+
+/* Barcode Section */
+.barcode-section {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.barcode {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #333;
+}
+
+/* Two Column Layout */
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.column {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 15px;
+  background: #fafafa;
+}
+
+/* Section Titles */
+.section-title {
+  margin-bottom: 15px;
+}
+
+.section-title h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+}
+
+.red-underline {
+  height: 2px;
+  background: #dc2626;
+  width: 100%;
+  margin-top: 5px;
+}
+
+/* Info Grid */
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.info-item .label {
+  font-weight: bold;
+  color: #555;
+  font-size: 11px;
+  min-width: 80px;
+}
+
+.info-item .value {
+  color: #333;
+  font-size: 11px;
+  text-align: right;
+  flex: 1;
+  margin-left: 10px;
+}
+
+/* Parcel Details */
+.parcel-details {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 15px;
+  background: #fafafa;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.detail-item .label {
+  font-weight: bold;
+  color: #555;
+  font-size: 11px;
+}
+
+.detail-item .value {
+  color: #333;
+  font-size: 11px;
+}
+
+/* Pricing Section */
+.pricing-section {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 15px;
+  background: #fafafa;
+}
+
+.pricing-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.pricing-row.total {
+  border-top: 1px solid #ddd;
+  padding-top: 8px;
+  margin-top: 8px;
+  font-weight: bold;
+}
+
+.pricing-label {
+  font-weight: bold;
+  color: #555;
+  font-size: 11px;
+}
+
+.pricing-value {
+  color: #333;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.pricing-row.total .pricing-value {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+/* Checkboxes */
+.checkboxes-section {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #dc2626;
+}
+
+.checkbox-item label {
+  font-size: 12px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Signature Section */
+.signature-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.signature-box {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  background: white;
+}
+
+.signature-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.signature-line {
+  height: 40px;
+  border-bottom: 2px solid #ccc;
+  margin-top: 10px;
+}
+
+/* Loading and Error States */
+.loading, .error {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #666;
+}
+
+.error {
+  color: #dc2626;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .delivery-note-container {
+    padding: 10px;
+  }
+  
+  .delivery-note {
+    padding: 15px;
+    font-size: 11px;
+  }
+  
+  .two-column-layout {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .signature-section {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .logo {
+    height: 30px;
+  }
+  
+  .header-info h1 {
+    font-size: 16px;
+  }
+} 

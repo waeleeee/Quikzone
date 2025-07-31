@@ -1,0 +1,675 @@
+the admin can see all this things 
+from the dashbord he see things "QuickZone
+QuickZone
+Système de Gestion
+A
+Admin QuickZone
+admin@quickzone.tn
+Administration
+
+Tableau de Bord
+
+Personnel
+
+Administration
+
+Commercial
+
+Finance
+
+Chef d'agence
+
+Membre de l'agence
+
+Livreurs
+
+Expéditeur
+
+Colis
+
+Pick up
+
+Secteurs
+
+Entrepôts
+
+Paiement Expéditeur
+
+Réclamation
+Se déconnecter
+Tableau de Bord
+Statistiques globales de QuickZone
+
+Connecté en tant que
+
+Admin QuickZone
+
+Administration
+
+A
+Total Utilisateurs
+
+1,247
+
++12%
+ce mois
+Colis Reçus
+
+1,200
+
++8%
+ce mois
+Colis Livrés
+
+950
+
++5%
+ce mois
+Expéditeurs
+
+456
+
++15%
+ce mois
+Revenus Mensuels
+
+DT125,430
+
++23%
+ce mois
+Performance des Livraisons
+Répartition Géographique
+Statut des Colis
+Actions Rapides
+
+Nouveau Colis
+
+Créer un nouveau colis
+
+
+Nouveau Expéditeur
+
+Ajouter un expéditeur
+
+
+Rapport
+
+Générer un rapport
+
+" 
+
+
+and when he also see this Gestion Admin
+Gérez les utilisateurs ayant des droits d'administration
+
+Ajouter Admin
+Rechercher...
+ID	Nom	Email	Téléphone	Gouvernorat	Adresse	Rôle	Actions
+Aucune donnée à afficher 
+"
+and he can see this at the page of the gestion commerciaux "Gestion Commerciaux
+Ajouter Commercial
+Rechercher...
+ID	NOM	EMAIL	TÉLÉPHONE	GOUVERNORAT	ADRESSE	TITRE	CLIENTS	EXPÉDITIONS REÇUES	ACTIONS
+COM001	Jean Dupont	jean.dupont@quickzone.tn	+216 71 234 567	Tunis	55	Commercial	12	156	
+
+
+
+COM002	Alice Smith	alice.smith@quickzone.tn	+216 98 765 432	Sousse	123	Senior Commercial	20	250	
+
+
+
+COM003	Mohamed Ben Ali	mohamed.benali@quickzone.tn	+216 95 123 456	Sfax	78	Commercial	8	89	
+
+
+
+" and when he click to the eye button at the action he see this "Gestion des expéditeurs
+Gestion des expéditeurs et analyse des performances
+
+Commercial ID: COM001
+Jean Dupont
+Commercial ID: COM001
+jean.dupont@quickzone.tn
++216 71 234 567
+Expéditeurs
+12
+Nombre d’expéditeurs
+TOTAL EXPÉDITIONS
+156
+Expéditions au total
+Expédition livrée
+142
+Livrées avec succès
+Filtres avancés
+Afficher
+Mes Expéditeurs (3)
+Gérez vos expéditeurs et suivez leurs performances
+
+Rechercher...
+CODE	NOM	EMAIL	TÉLÉPHONE	ENTREPRISE	TOTAL COLIS	COLIS LIVRÉ	COLIS RETOURNÉ	FRAIS DE LIVRAISON	FRAIS DE RETOUR	STATUT	ACTIONS
+EXP001	Pierre Dubois	pierre.dubois@email.com	+33 1 23 45 67 89	Dubois Logistics	45	3	0	DT86.40	DT0.00	Actif	
+
+EXP002	Sarah Ahmed	sarah.ahmed@email.com	+33 1 98 76 54 32	Ahmed Trading	32	2	0	DT57.75	DT0.00	Actif	
+
+EXP003	Mohamed Ali	mohamed.ali@email.com	+33 1 11 22 33 44	Ali Import Export	28	1	1	DT45.00	DT0.00	Inactif	
+
+" and when he aslo click to the eye button he see this "Détails de l'expéditeur
+Pierre Dubois - Dubois Logistics
+
+Fermer
+Exporter en PDF
+Résumé des Performances
+DT1150.50
+Chiffre d'affaires total
+42
+Colis réussis
+93.3%
+Taux de réussite
+Informations de contact
+Nom:
+Pierre Dubois
+Email:
+pierre.dubois@email.com
+Téléphone:
++33 1 23 45 67 89
+Entreprise:
+Dubois Logistics
+SIRET:
+12345678901234
+Statistiques
+Total colis:
+45
+Colis réussis:
+42
+Taux de réussite:
+93.3%
+Chiffre d'affaires:
+DT1150.50
+Date d'inscription:
+2023-01-15
+Paiements à cet expéditeur
+Date	Montant	Méthode	Référence	Statut
+2024-01-20	400,00 DT	Virement bancaire	REF-004	Payé
+Colis récents
+ID	Statut	Date	Montant
+COL001	Livés	2024-01-18	DT25.50
+COL002	En cours	2024-01-19	DT18.75
+COL003	Livés	2024-01-17	DT32.00
+COL004	En attente	2024-01-20	DT15.25
+COL005	Livés	2024-01-16	DT28.90" and he see this page of Gestion des comptables
+Gérez les comptables et leurs informations
+
+Ajouter Comptable
+Rechercher...
+ID	Nom et prénom	Email	Téléphone	Gouvernorat	Adresse	Titre	Agence	Actions
+COMP001	Sami Ben Ali	sami.benali@quickzone.tn	+216 21 123 456	Tunis	12 Rue de la Liberté, Tunis	Comptable	Siège	
+
+
+COMP002	Leila Trabelsi	leila.trabelsi@quickzone.tn	+216 98 654 321	Sousse	45 Avenue Habib Bourguiba, Sousse	Senior comptable	Sousse	
+
+
+ and he see this also Gestion des chefs d’agence
+Ajouter chefs d’agence
+Rechercher...
+ID	Nom et prénom	Email	Téléphone	Gouvernorat	Adresse	Agence	Actions
+CHEF001	Amine Gharbi	amine.gharbi@quickzone.tn	+216 20 123 456	Tunis	Rue de la République, Tunis	Tunis	
+
+
+
+CHEF002	Sonia Ben Salah	sonia.bensalah@quickzone.tn	+216 98 654 321	Sousse	Avenue de la Liberté, Sousse	Sousse	
+
+
+
+ and when he click at the eye button he see this Membres de l'agence Tunis
+Liste et gestion des membres de l'agence
+
+2 membre(s)
+Rechercher par nom, email ou rôle...
+Ajouter un membre
+Rechercher...
+ID	Nom et prénom	Email	Téléphone	Gouvernorat	Adresse	Agence	Rôle	Actions
+1	Pierre Dubois	pierre.membre@email.com	+33 1 23 45 67 89			Tunis	Responsable d'agence	
+
+
+2	Sarah Ahmed	sarah.membre@email.com	+33 1 98 76 54 32			Tunis	Agent d'accueil	
+
+
+ and he see this Gestion des Membres d'Agence
+Gestion complète du personnel des agences
+
+Ajouter un membre
+Total Membres
+
+4
+
+Membres Actifs
+
+3
+
+Membres Inactifs
+
+1
+
+Agences
+
+4
+
+Rechercher...
+ID	Nom et prénom	Email	Téléphone	Gouvernorat	Agence	Rôle	Statut	Date de création	Actions
+MEM001	Pierre Dubois	pierre.membre@email.com	+33 1 23 45 67 89	Tunis	Tunis	Responsable d'agence	Actif	2024-01-15	
+
+
+MEM002	Sarah Ahmed	sarah.membre@email.com	+33 1 98 76 54 32	Sousse	Sousse	Agent d'accueil	Actif	2024-01-20	
+
+
+MEM003	Mohamed Ali	mohamed.membre@email.com	+33 1 11 22 33 44	Sfax	Sfax	Gestionnaire de stock	Actif	2024-02-01	
+
+
+MEM004	Fatima Ben Salem	fatima.membre@email.com	+33 1 44 55 66 77	Monastir	Monastir	Agent de livraison	Inactif	2024-01-10	
+
+
+ and he see this Gestion des livreurs
+Liste des livreurs et leurs informations
+
+Ajouter un livreur
+Rechercher...
+ID	Nom	Email	Téléphone	Gouvernorat	Adresse	Véhicule	Actions
+LIV001	Pierre Dubois	pierre.livreur@email.com	+33 1 23 45 67 89	Tunis	12 Rue de Paris, Tunis	Renault Kangoo	
+
+
+LIV002	Sarah Ahmed	sarah.livreur@email.com	+33 1 98 76 54 32	Sousse	34 Avenue Habib Bourguiba, Sousse	Peugeot Partner	
+
+
+LIV003	Mohamed Ali	mohamed.livreur@email.com	+33 1 11 22 33 44	Sfax	56 Rue de la Liberté, Sfax	Citroën Berlingo	
+
+
+also this Gestion des expéditeurs
+Liste des expéditeurs et leurs informations
+
+Nouvel expéditeur
+Filtres avancés
+Afficher
+Rechercher...
+Code	Nom	Email	Téléphone	Entreprise	Total colis	Colis livrés	Colis retournés	Frais de livraison	Frais de retour	Statut	Actions
+EXP001	Pierre Dubois	pierre.dubois@email.com	+33 1 23 45 67 89	Dubois Logistics	45	42	5	15	10	Actif	
+
+
+
+EXP002	Sarah Ahmed	sarah.ahmed@email.com	+33 1 98 76 54 32	Ahmed Trading	32	29	3	12	8	Actif	
+
+
+
+EXP003	Mohamed Ali	mohamed.ali@email.com	+33 1 11 22 33 44	Ali Import Export	28	24	2	18	12	Inactif	
+
+
+
+ and when he click to the eye button he see this Détails de l'expéditeur
+Pierre Dubois - Dubois Logistics
+
+Fermer
+Exporter en PDF
+Informations personnelles
+Pierre Dubois
+Dubois Logistics
+EXP001
+Email :
+pierre.dubois@email.com
+Téléphone :
++33 1 23 45 67 89
+Adresse :
+12 rue de Paris, 75001 Paris
+Gouvernorat :
+Tunis
+Numéro d'identité :
+123456789012345
+Numéro de passeport :
+A12345678
+Matricule fiscal :
+12345678901234
+Agence :
+Tunis Sud
+Commercial :
+Ahmed Ben Ali
+Frais de livraison (DT) :
+15
+Frais de retour (DT) :
+10
+Documents :
+FactureBon de livraison
+Réduction documents :
+0%
+Informations bancaires
+Banque :
+Crédit Agricole
+IBAN :
+FR76 1234 5678 9012 3456 7890 123
+BIC :
+AGRIFRPP123
+Statistiques
+2840.5DT
+Chiffre d'affaires
+63.12DT
+Moyenne/colis
+92%
+Livraison à temps
+4.8/5
+Note client
+Informations système
+Date d'inscription :
+2023-01-15
+Dernière activité :
+2024-01-20
+Total colis :
+45
+Colis réussis :
+42
+Taux de réussite :
+93%
+Livreur par défaut :
+Pierre Dubois
+Historique des colis
+(5)
+Ajouter un colis
+Rechercher dans les colis (ID, destination, type, statut, date, montant)...
+ID Colis	Destination	Type	Poids	Statut	Date	Montant	Actions
+COL001	Paris	Standard	2.5kg	Livés	2024-01-18	25.5DT	
+
+
+COL002	Lyon	Express	1.8kg	En cours	2024-01-19	18.75DT	
+
+
+COL003	Marseille	Standard	3.2kg	Livés	2024-01-17	32DT	
+
+
+COL004	Toulouse	Standard	1.5kg	En attente	2024-01-20	15.25DT	
+
+
+COL005	Nice	Express	2.8kg	Livés	2024-01-16	28.9DT	
+
+
+Historique des paiements
+(3)
+Ajouter un paiement
+Rechercher dans les paiements (ID, référence, méthode, statut, date, montant)...
+ID Paiement	Référence	Méthode	Statut	Date	Montant	Actions
+PAY001	REF001	Carte bancaire	Payé	2024-01-15	150.25DT	
+
+
+PAY002	REF002	Virement	En attente	2024-01-10	89.5DT	
+
+
+PAY003	REF003	Chèque	Payé	2024-01-05	210.75DT	
+
+
+ and he see this estion des Colis
+Gérez vos colis et suivez leur statut
+
+
++
+Créer un colis
+Recherche avancée
+Afficher
+Rechercher...
+N° Colis	Expéditeur	Destination	Statut	Poids	Date de création	Date de livraison estimée	Prix
+C-123456	EXPEDITEUR SARL	Tunis	En attente	2.5	2024-06-13	2024-06-15	15.00
+C-654321	EXPEDITEUR SARL	Sousse	En cours	5.0	2024-06-12	2024-06-14	18.00
+C-789012	EXPEDITEUR SARL	Sfax	Livrés	1.2	2024-06-10	2024-06-12	12.00
+ and when he click at the colis he see this Historique du colis C-789012
+Télécharger la timeline
+×
+Client: EXPEDITEUR SARL
+Montant: 12.00
+Téléphone: 52 097 552
+Adresse: Sfax
+Désignation: Colis
+Nombre des articles: 1
+2025-06-13 14:32
+⏳
+En attente
+Sousse
+Colis enregistré dans le système.
+2025-06-13 20:46
+📦
+Au dépôt
+Sousse
+Colis reçu au dépôt de Sousse.
+2025-06-14 08:16
+🚚
+En cours
+Bizerte
+Colis en cours de livraison.
+2025-06-14 14:29
+✅
+Livés
+Bizerte
+Colis livré au client.
+2025-06-17 15:46
+💶
+Livrés payés
+Bizerte
+Paiement reçu.
+and he see this page also Gestion des missions de collecte
+Assignez des missions de ramassage aux livreurs, reliez colis et expéditeurs
+
+Nouvelle mission
+Rechercher...
+N° Mission	Livreur	Expéditeur	Colis	Date prévue	Statut	Actions
+PIK001	Pierre Dubois	Expéditeur A	COL001, COL002	2024-01-15 10:00	En attente	
+
+
+
+PIK002	Sarah Ahmed	Expéditeur B	COL003, COL004	2024-01-16 09:00	Livés	
+
+
+
+ and when he click at the eye button he see this Détail de la mission #PIK001
+إغلاق
+Livreur
+Pierre Dubois
+Expéditeur
+Expéditeur A
+Créée par
+François Petit
+francois.petit@quickzone.tn — Chef d'agence
+Date prévue :
+2024-01-15 10:00
+Statut :
+En attente
+Colis associés
+(2)
+COL001
+Destinataire : Paris
+En attente
+COL002
+Destinataire : Lyon
+Au dépôt
+Mission créée le 2024-01-15 09:00 and he see this page also Gestion des secteurs
+Gérez les secteurs de livraison et leurs responsables
+
+Ajouter un secteur
+Rechercher...
+ID	Nom du secteur	Ville	Responsable	Statut	Actions
+SEC001	Secteur Nord	Paris, Lyon	Pierre Dubois	Actif	
+
+
+SEC002	Secteur Sud	Marseille, Toulouse	Sarah Ahmed	Actif	
+
+
+SEC003	Secteur Est	Nice, Nantes	Mohamed Ali	Inactif	
+
+
+ and this Gestion des entrepôts
+Gérez les informations de vos entrepôts et leurs utilisateurs
+
+Ajouter un entrepôt
+Rechercher...
+ID	Nom de l'entrepôt	Gouvernorat	Adresse	Responsable	Stock actuel	Actions
+ENT001	Entrepôt Tunis Central	Tunis	123 Rue de la Paix, 1000 Tunis	Pierre Dubois	
+75%
+
+
+
+ENT002	Entrepôt Sousse	Sousse	456 Avenue Habib Bourguiba, 4000 Sousse	Sarah Ahmed	
+60%
+
+
+
+ENT003	Entrepôt Sfax	Sfax	789 Rue de la Liberté, 3000 Sfax	Mohamed Ali	
+90%
+
+
+
+ and when he click he see this Entrepôt Tunis Central
+Localisation: Tunis
+
+Adresse: 123 Rue de la Paix, 1000 Tunis
+
+Responsable: Pierre Dubois
+
+Téléphone: +216 71 234 567
+
+Email: tunis@quickzone.tn
+
+Stock actuel: 75%
+
+Date de création: 2023-01-15
+
+Statut:Actif
+
+Exporter en Excel
+Fermer
+Statistiques de l'entrepôt
+135
+Total colis
+28
+Livrés aujourd'hui
+12
+En attente
+2.3h
+Temps moyen
++15%
+Croissance mensuelle
+4.8/5
+Satisfaction client
+En attente
+3
+À enlever
+3
+Enlevé
+3
+Au dépôt
+3
+En cours
+3
+RTN dépôt
+3
+Livrés
+3
+Livrés payés
+3
+Retour définitif
+3
+RTN client agence
+3
+Retour Expéditeur
+3
+Retour En Cours d'expédition
+3
+Retour reçu
+3
+Utilisateurs de l'entrepôt (3)
+Nom	Rôle	Email	Téléphone	Statut	Date d'entrée	Colis traités	Performance
+Marie Dupont	Chef d'équipe	marie.dupont@quickzone.fr	+33 6 12 34 56 78	Actif	2023-02-01	45	95%
+Jean Martin	Livreur	jean.martin@quickzone.fr	+33 6 98 76 54 32	Actif	2023-03-15	38	88%
+Sophie Bernard	Agent de tri	sophie.bernard@quickzone.fr	+33 6 55 44 33 22	Actif	2023-01-20	52	92%
+ and when into the button of  Colis - En attente he see this 
+إغلاق
+Code	Client	Téléphone	Date	Statut	Actions
+QZENT001EN1	Pierre Dubois	+33 6 12 34 56 78	2023-03-10	En attente	
+QZENT001EN2	Marie Dupont	+33 6 98 76 54 32	2023-03-11	En attente	
+QZENT001EN3	Jean Martin	+33 6 55 44 33 22	2023-03-12	En attente	
+ and when he click again to the eye he see this QuickZone
+Date : 2025-06-13
+Bon de Livraison N° QZENT001EN1
+Sarl Capital Social 1 000 000DT MF 1609221Y/A/M000 Adresse : N°39 rue 8601, zone industrielle Charguia 1 - Tunis 2035
+Soc. transport terrestre de tous produits non réglementés pour le compte d'autrui.
+QZENT001EN1
+QZENT001EN1
+S1/2
+Expéditeur
+Nom: Bon Prix Sousse
+Adresse: sousse
+Téléphone: 23814555
+Matricule Fiscal / CIN: 1678798WNM000
+Destinataire
+Nom: Pierre Dubois
+Adresse: Jerba roubana Djerba - Midoun ROBBANA Médenine
+Téléphone: +33 6 12 34 56 78
+Sousse >> ---- Dispatch ---- >> Mednine
+Désignation-Contenu du colis	Quantité	Montant TTC
+Coli	1	68,000 DT
+Dont TVA 7% 0.471 DT
+Instructions diverses :
+Burkini noir flowers 34 ????? ?????? ??????
+Signature expéditeur:
+Exporter en PDF and he see this page too Gestion des paiements des expéditeurs
+Gérez les paiements et les transactions des expéditeurs
+
+Ajouter un paiement
+Rechercher...
+ID	Expéditeur	Montant	Date	Méthode de paiement	Référence	Statut	Facture	Actions
+PAY001	Ahmed Mohamed	250,00 DT	2024-01-15	Virement bancaire	REF-001	Payé	Facture	
+
+
+PAY002	Sarah Ahmed	180,00 DT	2024-01-14	Espèces	REF-002	Payé	Facture	
+
+
+PAY003	Mohamed Ali	320,00 DT	2024-01-13	Chèque	REF-003	En attente	Facture	
+
+
+ and when he click to the facture he see this Facture du paiement
+إغلاق
+QuickZone
+QUICKZONE delivery
+REF-001
+Facture
+Pour assistance, appelez : +216 28 563 115
+Détails du Colis
+Nom du Colis : Colis démo
+Nom du Client : Ahmed Mohamed
+Téléphone du Client : 29596971
+Adresse de Livraison : Béja centre, Béja
+Poids : 1.00 kg
+Note : Le jeudi svp
+Détails du Expéditeur
+Numéro d’Immatriculation Fiscale : 1904056B/NM/000
+Numéro de Téléphone : 23613518
+Nom de société : Roura ever shop
+Nom et prénom : Sarah Mathlouthi
+Adresse : 33 rue Rabta beb jdidi Tunis
+Détails des Prix
+Coût de Livraison de Base	8.00 DT
+Coûts Supplémentaires (Poids)	0.00 DT
+Coûts Supplémentaires (Livraison Rapide)	8.00 DT
+Total Frais de Livraison	8.00 DT
+Total HT	29.17 DT
+TVA (7%)	5.83 DT
+Prix colis	250,00 DT
+Total TTC	43.00 DT
+Exporter en PD and he see this also this Gestion des réclamations
+Liste des réclamations clients et leur suivi
+
+Ajouter une réclamation
+Rechercher...
+ID	Client	Objet	Date	Statut	Actions
+REC001	Pierre Dubois	Colis endommagé	2024-01-15	En attente	
+
+
+REC002	Sarah Ahmed	Retard de livraison	2024-01-14	Traitée	
+
+
+REC003	Mohamed Ali	Erreur d'adresse	2024-01-13	Rejetée	
+
+
+ 
+ 
