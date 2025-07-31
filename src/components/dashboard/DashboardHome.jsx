@@ -5,6 +5,7 @@ import DeliveryChart from "../charts/DeliveryChart";
 import GeoChart from "../charts/GeoChart";
 import StatusChart from "../charts/StatusChart";
 import ColisCreate from "./ColisCreate";
+import DashboardReport from "./DashboardReport";
 import { apiService } from "../../services/api";
 
 const DashboardHome = () => {
@@ -45,6 +46,7 @@ const DashboardHome = () => {
   const [showColisCreateModal, setShowColisCreateModal] = useState(false);
   const [showTrackParcelModal, setShowTrackParcelModal] = useState(false);
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   
   // Track parcel states
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -776,6 +778,15 @@ const DashboardHome = () => {
             </p>
           </div>
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Rapport</span>
+            </button>
             <div className="text-right">
               <p className="text-sm text-red-600 font-medium">Connecté en tant que</p>
               <p className="font-bold text-red-800 text-lg">{currentUser.name || currentUser.firstName || currentUser.email || 'Utilisateur'}</p>
@@ -1367,6 +1378,18 @@ const DashboardHome = () => {
           </div>
         </div>
       )}
+
+      {/* Dashboard Report Modal */}
+      <DashboardReport
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        currentUser={currentUser}
+        roleSpecificStats={roleSpecificStats}
+        expediteurStats={expediteurStats}
+        expediteurChartData={expediteurChartData}
+        adminChartData={adminChartData}
+        chefAgenceStats={chefAgenceStats}
+      />
     </div>
   );
 };
