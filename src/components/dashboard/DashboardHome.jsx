@@ -649,13 +649,8 @@ const DashboardHome = () => {
 
   // Quick action functions
   const handleNewParcel = () => {
-    // Navigate to colis section instead of opening modal
-    navigate('/dashboard', { 
-      state: { 
-        quick: 'colis',
-        openCreateModal: true 
-      } 
-    });
+    // Open the colis create modal
+    setShowColisCreateModal(true);
   };
 
   const handleNewExpediteur = () => {
@@ -1076,7 +1071,10 @@ const DashboardHome = () => {
                   <p className="text-sm text-gray-500 mt-1">Ajouter un expéditeur</p>
                 </div>
               </button>
-              <button className="group flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-300 transform hover:scale-105">
+              <button 
+                onClick={() => setShowReportModal(true)}
+                className="group flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all duration-300 transform hover:scale-105 cursor-pointer"
+              >
                 <div className="text-center">
                   <div className="mb-3 group-hover:scale-110 transition-transform">
                     <svg className="w-12 h-12 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">

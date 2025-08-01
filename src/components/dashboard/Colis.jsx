@@ -63,6 +63,11 @@ const Colis = () => {
   // Get current user to check permissions
   const [currentUser] = useState(() => {
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    console.log('🔍 Current user loaded:', user);
+    console.log('🔍 User role:', user?.role);
+    console.log('🔍 User role type:', typeof user?.role);
+    console.log('🔍 User role length:', user?.role?.length);
+    console.log('🔍 User role char codes:', user?.role?.split('').map(c => c.charCodeAt(0)));
     return user;
   });
 
@@ -71,6 +76,30 @@ const Colis = () => {
                   currentUser?.role === 'Admin' || 
                   currentUser?.role === 'Chef d\'agence' ||
                   currentUser?.role === 'Administrateur';
+
+  // Function to check if expediteur can edit a specific parcel
+  const canExpediteurEdit = (parcel) => {
+    console.log('🔍 canExpediteurEdit called for parcel:', parcel.id, 'Status:', parcel.status);
+    console.log('🔍 Current user role:', currentUser?.role);
+    console.log('🔍 Role comparison:', currentUser?.role === 'Expéditeur');
+    console.log('🔍 Role comparison (strict):', currentUser?.role !== 'Expéditeur');
+    
+    if (currentUser?.role !== 'Expéditeur') {
+      console.log('🔍 User is not Expéditeur, allowing edit');
+      return true;
+    }
+    
+    // Expediteurs can only edit parcels with status "En attente"
+    const canEdit = parcel.status === 'En attente';
+    console.log('🔍 Expediteur can edit:', canEdit, 'because status is:', parcel.status);
+    return canEdit;
+  };
+
+  // Function to check if expediteur can edit status field
+  const canExpediteurEditStatus = () => {
+    // Expediteurs cannot edit status field at all
+    return currentUser?.role !== 'Expéditeur';
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -519,7 +548,7 @@ const Colis = () => {
       key: "status",
       header: "Statut",
       minWidth: "120px",
-      render: (value) => {
+      render: (value, parcel) => {
         const statusColors = {
           "En attente": "bg-yellow-100 text-yellow-800",
           "Au dépôt": "bg-blue-100 text-blue-800",
@@ -533,10 +562,21 @@ const Colis = () => {
           "Retour En Cours d'expédition": "bg-indigo-100 text-indigo-800",
           "Retour reçu": "bg-cyan-100 text-cyan-800",
         };
+        
+        const canEditThisParcel = canEdit || canExpediteurEdit(parcel);
+        const isExpediteur = currentUser?.role === 'Expéditeur';
+        
         return (
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[value] || "bg-gray-100 text-gray-800"}`}>
-            {value || '-'}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[value] || "bg-gray-100 text-gray-800"}`}>
+              {value || '-'}
+            </span>
+            {isExpediteur && !canEditThisParcel && (
+              <span className="text-xs text-gray-500" title="Non modifiable par l'expéditeur">
+                🔒
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -756,8 +796,16 @@ const Colis = () => {
     
     if (editingParcel) {
       console.log('📦 Updating parcel:', editingParcel.id);
-      console.log('📦 Update data:', formData);
-      updateParcelMutation.mutate({ id: editingParcel.id, updates: formData });
+      
+      // For expediteurs, remove status from formData to prevent status updates
+      let updateData = { ...formData };
+      if (!canExpediteurEditStatus()) {
+        console.log('📦 Expediteur cannot update status, removing from update data');
+        delete updateData.status;
+      }
+      
+      console.log('📦 Final update data:', updateData);
+      updateParcelMutation.mutate({ id: editingParcel.id, updates: updateData });
     } else {
       console.log('📦 Creating new parcel');
       createParcelMutation.mutate(formData);
@@ -1073,10 +1121,68 @@ const Colis = () => {
         columns={columns}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        showActions={canEdit}
+        showActions={true}
         onRowClick={handleRowClick}
-        onEdit={canEdit ? handleEdit : undefined}
-        onDelete={canEdit ? handleDelete : undefined}
+        customActionButtons={(parcel) => {
+          console.log('🔍 CUSTOM ACTION BUTTONS CALLED for parcel:', parcel.id, 'Status:', parcel.status);
+          console.log('🔍 Current user role:', currentUser?.role);
+          console.log('🔍 Can edit:', canEdit);
+          console.log('🔍 Can expediteur edit:', canExpediteurEdit(parcel));
+          console.log('🔍 Role comparison result:', currentUser?.role !== 'Expéditeur');
+          console.log('🔍 Final edit button condition:', canEdit && currentUser?.role !== 'Expéditeur');
+          
+          // Check if user is expediteur (handle different possible spellings)
+          const isExpediteur = currentUser?.role === 'Expéditeur' || 
+                              currentUser?.role?.toLowerCase().includes('expéditeur') || 
+                              currentUser?.role?.toLowerCase().includes('expediteur');
+          
+          console.log('🔍 Is expediteur check:', isExpediteur);
+          
+          return (
+            <div className="flex gap-2">
+              {/* View button - always visible */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRowClick(parcel); }}
+                className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
+                title="Voir les détails"
+                type="button"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              
+              {/* Edit button - only visible for admins, not for expediteurs */}
+              {canEdit && !isExpediteur && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleEdit(parcel); }}
+                  className="text-green-600 hover:text-green-800 p-1 rounded-full hover:bg-green-50 transition-colors"
+                  title="Modifier"
+                  type="button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              )}
+              
+              {/* Delete button - only visible if user can delete */}
+              {(canEdit || canExpediteurEdit(parcel)) && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(parcel); }}
+                  className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
+                  title="Supprimer"
+                  type="button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        }}
       />
 
       {/* Pagination Controls */}
@@ -1361,10 +1467,18 @@ const Colis = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Statut
+                  {!canExpediteurEditStatus() && (
+                    <span className="text-xs text-red-600 ml-1">(Non modifiable pour les expéditeurs)</span>
+                  )}
                 </label>
                 <select
                   {...register("status", { required: "Le statut est requis" })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                    !canExpediteurEditStatus() 
+                      ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
+                      : 'border-gray-300'
+                  }`}
+                  disabled={!canExpediteurEditStatus()}
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>

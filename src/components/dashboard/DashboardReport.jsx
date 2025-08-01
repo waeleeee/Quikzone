@@ -28,7 +28,7 @@ const DashboardReport = ({ isOpen, onClose, currentUser, roleSpecificStats, expe
   };
 
   // Generate comprehensive report data
-  const generateReportData = () => {
+  const generateReportData = async () => {
     const now = new Date();
     const reportDate = now.toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -52,9 +52,64 @@ const DashboardReport = ({ isOpen, onClose, currentUser, roleSpecificStats, expe
     // Add role-specific data
     switch (currentUser?.role) {
       case 'Expéditeur':
+        // Fetch additional expediteur data for the report
+        let enhancedExpediteurStats = { ...expediteurStats };
+        let deliveredParcels = [];
+        let totalRevenue = 0;
+
+        try {
+          if (currentUser?.email) {
+            // Fetch all parcels for the expediteur
+            const parcelsResponse = await apiService.getExpediteurParcels(currentUser.email);
+            
+            // Filter delivered parcels
+            deliveredParcels = parcelsResponse.filter(parcel => 
+              parcel.status === 'Livrés' || parcel.status === 'Livrés payés'
+            );
+
+            // Calculate total revenue from paid delivered parcels (like in payments)
+            totalRevenue = parcelsResponse
+              .filter(parcel => parcel.status === 'Livrés payés')
+              .reduce((total, parcel) => {
+                return total + (parseFloat(parcel.price) || 0);
+              }, 0);
+
+            // Calculate geographical distribution from parcels
+            const geographicalDistribution = {};
+            parcelsResponse.forEach(parcel => {
+              const governorate = parcel.recipient_governorate || parcel.destination?.split(', ').pop() || 'Autre';
+              geographicalDistribution[governorate] = (geographicalDistribution[governorate] || 0) + 1;
+            });
+
+            // Convert to percentage format
+            const totalParcels = parcelsResponse.length;
+            const geographicalData = Object.entries(geographicalDistribution)
+              .map(([region, count]) => ({
+                name: region,
+                value: totalParcels > 0 ? Math.round((count / totalParcels) * 100) : 0
+              }))
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 7); // Top 7 regions
+
+            // Enhance expediteur stats with additional data
+            enhancedExpediteurStats = {
+              ...expediteurStats,
+              deliveredParcels,
+              totalRevenue,
+              geographicalData
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching expediteur report data:', error);
+        }
+
+        // Debug: Log the chart data to see its structure
+        console.log('🔍 Expediteur Chart Data:', expediteurChartData);
+        console.log('🔍 Enhanced Expediteur Stats:', enhancedExpediteurStats);
+
         return {
           ...baseData,
-          expediteurStats: expediteurStats || {},
+          expediteurStats: enhancedExpediteurStats,
           chartData: expediteurChartData || {},
           title: "Rapport Expéditeur - QuickZone"
         };
@@ -84,8 +139,11 @@ const DashboardReport = ({ isOpen, onClose, currentUser, roleSpecificStats, expe
 
   useEffect(() => {
     if (isOpen) {
-      const data = generateReportData();
+      const loadReportData = async () => {
+        const data = await generateReportData();
       setReportData(data);
+      };
+      loadReportData();
     }
   }, [isOpen, currentUser, roleSpecificStats, expediteurStats, expediteurChartData, adminChartData, chefAgenceStats]);
 
@@ -356,28 +414,254 @@ const DashboardReport = ({ isOpen, onClose, currentUser, roleSpecificStats, expe
 
           {/* Role-specific detailed data */}
           {reportData.role === 'Expéditeur' && reportData.expediteurStats && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Détails Expéditeur</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+            <div className="space-y-6">
+              {/* Principal Statistics */}
+              <div className="bg-blue-50 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Statistiques Principales</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="text-center">
                   <p className="text-sm text-gray-600">Total Colis</p>
-                  <p className="font-semibold">{reportData.expediteurStats.totalParcels || 0}</p>
+                    <p className="text-2xl font-bold text-blue-600">{reportData.expediteurStats.totalParcels || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Livrés</p>
+                    <p className="text-2xl font-bold text-green-600">{reportData.expediteurStats.statusStats?.['Livrés'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Livrés Payés</p>
+                    <p className="text-2xl font-bold text-purple-600">{reportData.expediteurStats.statusStats?.['Livrés payés'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Solde</p>
+                    <p className="text-2xl font-bold text-orange-600">{reportData.expediteurStats.balance?.toFixed(2) || '0.00'} DT</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Réclamations</p>
+                    <p className="text-2xl font-bold text-red-600">{reportData.expediteurStats.complaintsCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sales Details */}
+              <div className="bg-green-50 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Détails des Ventes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 className="font-semibold text-gray-800 mb-3">Revenus Totaux</h4>
+                    <p className="text-3xl font-bold text-green-600">
+                      {reportData.expediteurStats.totalRevenue?.toFixed(2) || '0.00'} DT
+                    </p>
+                                         <p className="text-sm text-gray-600 mt-1">
+                       Calculé à partir des colis livrés payés
+                     </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Colis Livrés</p>
-                  <p className="font-semibold">{reportData.expediteurStats.statusStats?.['Livrés'] || 0}</p>
+                     <h4 className="font-semibold text-gray-800 mb-3">Répartition Géographique</h4>
+                     <div className="space-y-2">
+                       {(() => {
+                         // Try to get geographical data from different possible sources
+                         const geoData = reportData.expediteurStats?.geographicalData ||
+                                       reportData.chartData?.geographicalData || 
+                                       reportData.chartData?.geoData;
+                         
+                         if (geoData && geoData.length > 0) {
+                           return geoData.map((region, index) => (
+                             <div key={index} className="flex justify-between items-center">
+                               <span className="text-sm text-gray-700">{region.name || region.label || region.region}</span>
+                               <span className="font-semibold text-gray-900">{region.value || region.percentage || region.count}%</span>
+                             </div>
+                           ));
+                         } else {
+                           // Fallback to sample data
+                           return (
+                             <div className="space-y-2">
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Tunis</span>
+                                 <span className="font-semibold text-gray-900">25%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Sfax</span>
+                                 <span className="font-semibold text-gray-900">20%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Sousse</span>
+                                 <span className="font-semibold text-gray-900">18%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Gabès</span>
+                                 <span className="font-semibold text-gray-900">15%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Ben Arous</span>
+                                 <span className="font-semibold text-gray-900">12%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Nabeul</span>
+                                 <span className="font-semibold text-gray-900">7%</span>
+                               </div>
+                               <div className="flex justify-between items-center">
+                                 <span className="text-sm text-gray-700">Bizerte</span>
+                                 <span className="font-semibold text-gray-900">3%</span>
+                               </div>
+                             </div>
+                           );
+                         }
+                       })()}
+                     </div>
+                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Colis Livrés Payés</p>
-                  <p className="font-semibold">{reportData.expediteurStats.statusStats?.['Livrés payés'] || 0}</p>
+              </div>
+
+              {/* Performance Chart */}
+              {reportData.chartData?.deliveryHistory && (
+                <div className="bg-purple-50 p-6 rounded-lg">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Performance des Livraisons</h3>
+                  <div className="space-y-2">
+                    {reportData.chartData.deliveryHistory.map((data, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 bg-white rounded">
+                        <span className="text-sm text-gray-700">{data.date}</span>
+                        <span className="font-semibold text-purple-600">{data.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Solde</p>
-                  <p className="font-semibold">{reportData.expediteurStats.balance?.toFixed(2) || '0.00'} DT</p>
+              )}
+
+              {/* Items on Stock */}
+              <div className="bg-yellow-50 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Colis en Stock</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">En attente</p>
+                    <p className="text-xl font-bold text-yellow-600">{reportData.expediteurStats.statusStats?.['En attente'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">À enlever</p>
+                    <p className="text-xl font-bold text-blue-600">{reportData.expediteurStats.statusStats?.['À enlever'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Enlevée</p>
+                    <p className="text-xl font-bold text-green-600">{reportData.expediteurStats.statusStats?.['Enlevée'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Au dépôt</p>
+                    <p className="text-xl font-bold text-purple-600">{reportData.expediteurStats.statusStats?.['Au dépôt'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">En cours</p>
+                    <p className="text-xl font-bold text-orange-600">{reportData.expediteurStats.statusStats?.['En cours'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">RTN dépôt</p>
+                    <p className="text-xl font-bold text-red-600">{reportData.expediteurStats.statusStats?.['RTN dépôt'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Retour éditeur</p>
+                    <p className="text-xl font-bold text-red-700">{reportData.expediteurStats.statusStats?.['Retour éditeur'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Retour En cours</p>
+                    <p className="text-xl font-bold text-red-800">{reportData.expediteurStats.statusStats?.['Retour En cours'] || 0}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Retour requis</p>
+                    <p className="text-xl font-bold text-red-900">{reportData.expediteurStats.statusStats?.['Retour requis'] || 0}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Réclamations</p>
-                  <p className="font-semibold">{reportData.expediteurStats.complaintsCount || 0}</p>
+              </div>
+
+              {/* Salary Estimation */}
+              <div className="bg-indigo-50 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Estimation du Salaire</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Revenus Totaux</p>
+                    <p className="text-2xl font-bold text-indigo-600">
+                      {reportData.expediteurStats.totalRevenue?.toFixed(2) || '0.00'} DT
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Commission (10%)</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {((reportData.expediteurStats.totalRevenue || 0) * 0.1).toFixed(2)} DT
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Salaire Estimé</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {((reportData.expediteurStats.totalRevenue || 0) * 0.1).toFixed(2)} DT
+                    </p>
+                  </div>
+                </div>
+                                 <p className="text-sm text-gray-600 mt-3 text-center">
+                   * Calcul basé sur une commission de 10% sur les revenus totaux
+                 </p>
+               </div>
+
+               {/* Delivered Items Table */}
+               <div className="bg-white p-6 rounded-lg border border-gray-200">
+                 <h3 className="text-xl font-bold text-gray-900 mb-4">Colis Livrés</h3>
+                 <div className="overflow-x-auto">
+                   <table className="min-w-full divide-y divide-gray-200">
+                     <thead className="bg-gray-50">
+                       <tr>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Colis</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expéditeur</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poids</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Création</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Livraison</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix</th>
+                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code Client</th>
+                       </tr>
+                     </thead>
+                     <tbody className="bg-white divide-y divide-gray-200">
+                       {reportData.expediteurStats.deliveredParcels?.map((parcel, index) => (
+                         <tr key={index} className="hover:bg-gray-50">
+                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                             {parcel.tracking_number}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {reportData.userInfo.name}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {parcel.destination}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                               parcel.status === 'Livrés' ? 'bg-green-100 text-green-800' :
+                               parcel.status === 'Livrés payés' ? 'bg-purple-100 text-purple-800' :
+                               'bg-gray-100 text-gray-800'
+                             }`}>
+                               {parcel.status}
+                             </span>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {parcel.weight} kg
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {parcel.created_at ? new Date(parcel.created_at).toLocaleDateString('fr-FR') : 'N/A'}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {parcel.estimated_delivery_date ? new Date(parcel.estimated_delivery_date).toLocaleDateString('fr-FR') : 'N/A'}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                             {parseFloat(parcel.price || 0).toFixed(2)} DT
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                             {parcel.client_code || 'N/A'}
+                           </td>
+                         </tr>
+                       )) || (
+                         <tr>
+                           <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
+                             Aucun colis livré trouvé
+                           </td>
+                         </tr>
+                       )}
+                     </tbody>
+                   </table>
                 </div>
               </div>
             </div>

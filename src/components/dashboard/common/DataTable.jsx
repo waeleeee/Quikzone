@@ -10,7 +10,8 @@ const DataTable = ({
   onSearchChange,
   showSearch = true,
   showActions = true,
-  onRowClick
+  onRowClick,
+  customActionButtons
 }) => {
   // Ensure data is always an array and handle null/undefined items
   const safeData = Array.isArray(data) ? data : [];
@@ -76,11 +77,15 @@ const DataTable = ({
                     ))}
                     {showActions && (
                       <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
-                        <ActionButtons
-                          onView={onRowClick ? (e) => { e.stopPropagation(); onRowClick(item); } : undefined}
-                          onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
-                          onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
-                        />
+                        {customActionButtons ? (
+                          customActionButtons(item)
+                        ) : (
+                          <ActionButtons
+                            onView={onRowClick ? (e) => { e.stopPropagation(); onRowClick(item); } : undefined}
+                            onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
+                            onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
+                          />
+                        )}
                       </td>
                     )}
                   </tr>

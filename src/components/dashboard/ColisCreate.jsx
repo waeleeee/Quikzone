@@ -163,24 +163,28 @@ function calcFraisLivraison(baseFrais, poids) {
   const base = parseFloat(baseFrais);
   if (!base) return "";
   
-  // 0-10kg: prix fixe (8 DT)
+  // 0-10kg: prix fixe (base price)
   if (!p || p <= 10) return base.toFixed(2);
   
-  // 11kg+: +0.9DT/kg pour chaque kg supplémentaire
-  if (p > 10) {
+  // 11-14kg: +0.9DT/kg pour chaque kg supplémentaire
+  if (p > 10 && p < 16) {
     const extraKilos = p - 10;
     const surcharge = extraKilos * 0.9;
     return (base + surcharge).toFixed(2);
+  }
+  
+  // 15kg+: prix doublé
+  if (p > 15) {
+    return (base * 2).toFixed(2);
   }
   
   return base.toFixed(2);
 }
 
 const ColisCreate = ({ onClose }) => {
+  const [currentUser, setCurrentUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userCoordinates, setUserCoordinates] = useState(null);
-  const [coordinatesLoading, setCoordinatesLoading] = useState(false);
   const [expediteurCode, setExpediteurCode] = useState("");
   const [expediteurLoading, setExpediteurLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -212,33 +216,7 @@ const ColisCreate = ({ onClose }) => {
     code: generateCode(),
   });
 
-  // Function to get user coordinates
-  const getUserCoordinates = () => {
-    if (!navigator.geolocation) {
-      alert('La géolocalisation n\'est pas supportée par votre navigateur');
-      return;
-    }
 
-    setCoordinatesLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserCoordinates({ latitude, longitude });
-        setCoordinatesLoading(false);
-        console.log('📍 User coordinates:', { latitude, longitude });
-      },
-      (error) => {
-        console.error('❌ Error getting coordinates:', error);
-        setCoordinatesLoading(false);
-        alert('Impossible d\'obtenir votre position. Vérifiez que vous avez autorisé la géolocalisation.');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000 // 5 minutes
-      }
-    );
-  };
 
   // Function to handle expediteur search with debouncing
   const handleExpediteurSearch = async (searchTerm) => {
@@ -335,6 +313,10 @@ const ColisCreate = ({ onClose }) => {
     const loadUserData = async () => {
       try {
         setLoading(true);
+        // Get current user from localStorage
+        const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        setCurrentUser(user);
+        
         const currentUserData = await getCurrentUserData();
         setUserData(currentUserData);
         setColis(prev => ({
@@ -538,85 +520,88 @@ const ColisCreate = ({ onClose }) => {
           <div className="w-full flex flex-col items-center">
             <h3 className="font-bold text-2xl mb-6 text-blue-700 tracking-wide text-center">EXPÉDITEUR</h3>
             <div className="space-y-4 w-full">
-              <div className="relative">
-                <label className="block text-base font-semibold text-gray-700 mb-1">
-                  <span className="flex items-center">
-                    <span className="mr-2">🔍</span>
-                    Rechercher l'expéditeur
-                  </span>
-                </label>
-                <div className="flex space-x-2">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      name="expediteurCode"
-                      value={expediteurCode}
-                      onChange={handleExpediteurCodeChange}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleExpediteurCodeSubmit(e);
-                        }
-                      }}
-                      onFocus={() => {
-                        if (searchResults.length > 0) {
-                          setShowDropdown(true);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Delay hiding dropdown to allow clicking on items
-                        setTimeout(() => setShowDropdown(false), 200);
-                      }}
-                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${searchLoading ? 'bg-blue-50' : ''}`}
-                      placeholder={searchLoading ? "Recherche en cours..." : "Code, nom ou téléphone"}
-                    />
-                    {/* Dropdown for search results */}
-                    {showDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {searchResults.length > 0 ? (
-                          searchResults.map((expediteur, index) => (
-                            <div
-                              key={index}
-                              className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                              onClick={() => selectExpediteur(expediteur)}
-                            >
-                              <div className="font-medium text-gray-900">
-                                {expediteur.name || expediteur.code || expediteur.phone}
+              {/* Only show search bar for non-expediteur users (admins) */}
+              {currentUser && currentUser.role !== 'Expéditeur' && (
+                <div className="relative">
+                  <label className="block text-base font-semibold text-gray-700 mb-1">
+                    <span className="flex items-center">
+                      <span className="mr-2">🔍</span>
+                      Rechercher l'expéditeur
+                    </span>
+                  </label>
+                  <div className="flex space-x-2">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        name="expediteurCode"
+                        value={expediteurCode}
+                        onChange={handleExpediteurCodeChange}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleExpediteurCodeSubmit(e);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (searchResults.length > 0) {
+                            setShowDropdown(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay hiding dropdown to allow clicking on items
+                          setTimeout(() => setShowDropdown(false), 200);
+                        }}
+                        className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${searchLoading ? 'bg-blue-50' : ''}`}
+                        placeholder={searchLoading ? "Recherche en cours..." : "Code, nom ou téléphone"}
+                      />
+                      {/* Dropdown for search results */}
+                      {showDropdown && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {searchResults.length > 0 ? (
+                            searchResults.map((expediteur, index) => (
+                              <div
+                                key={index}
+                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                onClick={() => selectExpediteur(expediteur)}
+                              >
+                                <div className="font-medium text-gray-900">
+                                  {expediteur.name || expediteur.code || expediteur.phone}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {expediteur.code && <span className="mr-2">Code: {expediteur.code}</span>}
+                                  {expediteur.phone && <span>Tél: {expediteur.phone}</span>}
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-600">
-                                {expediteur.code && <span className="mr-2">Code: {expediteur.code}</span>}
-                                {expediteur.phone && <span>Tél: {expediteur.phone}</span>}
+                            ))
+                          ) : searchLoading ? (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                Recherche en cours...
                               </div>
                             </div>
-                          ))
-                        ) : searchLoading ? (
-                          <div className="px-4 py-3 text-gray-500 text-center">
-                            <div className="flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                              Recherche en cours...
+                          ) : (
+                            <div className="px-4 py-3 text-gray-500 text-center">
+                              Aucun expéditeur trouvé
                             </div>
-                          </div>
-                        ) : (
-                          <div className="px-4 py-3 text-gray-500 text-center">
-                            Aucun expéditeur trouvé
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExpediteurCodeSubmit}
+                      disabled={expediteurLoading || !expediteurCode.trim()}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                      title="Rechercher et charger les informations de l'expéditeur"
+                    >
+                      {expediteurLoading ? '⏳' : '🔍'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleExpediteurCodeSubmit}
-                    disabled={expediteurLoading || !expediteurCode.trim()}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium transition-colors"
-                    title="Rechercher et charger les informations de l'expéditeur"
-                  >
-                    {expediteurLoading ? '⏳' : '🔍'}
-                  </button>
+                  <small className="text-xs text-gray-500 mt-1 block">
+                    💡 Tapez le code, nom ou téléphone de l'expéditeur pour voir les suggestions
+                  </small>
                 </div>
-                <small className="text-xs text-gray-500 mt-1 block">
-                  💡 Tapez le code, nom ou téléphone de l'expéditeur pour voir les suggestions
-                </small>
-              </div>
+              )}
               <div>
                 <label className="block text-base font-semibold text-gray-700 mb-1">Date de collecte *</label>
                 <input type="date" name="dateCollecte" value={colis.dateCollecte} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg" required />
@@ -648,25 +633,7 @@ const ColisCreate = ({ onClose }) => {
                 <label className="block text-base font-semibold text-gray-700 mb-1">Adresse</label>
                 <input type="text" name="expediteurAdresse" value={colis.expediteurAdresse} readOnly disabled className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-lg text-gray-500" />
               </div>
-              <div>
-                <label className="block text-base font-semibold text-gray-700 mb-1">Coordonnées GPS</label>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={getUserCoordinates}
-                    disabled={coordinatesLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
-                  >
-                    {coordinatesLoading ? '📍 Récupération...' : '📍 Obtenir ma position'}
-                  </button>
-                  {userCoordinates && (
-                    <span className="text-sm text-gray-600">
-                      {userCoordinates.latitude.toFixed(6)}, {userCoordinates.longitude.toFixed(6)}
-                    </span>
-                  )}
-                </div>
-                <small className="text-xs text-gray-500">Cliquez pour obtenir vos coordonnées GPS actuelles</small>
-              </div>
+
             </div>
           </div>
         </div>
@@ -725,7 +692,7 @@ const ColisCreate = ({ onClose }) => {
               <div>
                 <label className="block text-base font-semibold text-gray-700 mb-1 ">Frais de livraison (TND) *</label>
                 <input type="number" name="fraisLivraison" value={colis.fraisLivraison} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg" min="0" step="0.01" required readOnly />
-                <small className="text-xs text-gray-500">Le prix de base est défini par l'expéditeur. Surcharges automatiques selon le poids.</small>
+                <small className="text-xs text-gray-500">Le prix de base est défini par l'expéditeur. 0-10kg: prix fixe, 11-14kg: +0.9DT/kg, 15kg+: prix doublé.</small>
               </div>
               <div>
                 <label className="block text-base font-semibold text-gray-700 mb-1 ">Service</label>
@@ -736,7 +703,7 @@ const ColisCreate = ({ onClose }) => {
               <div>
                 <label className="block text-base font-semibold text-gray-700 mb-1 ">Poids (kg)</label>
                 <input type="number" name="poids" value={colis.poids} onChange={handleChange} className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg" min="0.01" step="0.01" />
-                <small className="text-xs text-gray-500 block">0-10kg: prix fixe (8 DT), 11kg+: +0,9DT/kg supplémentaire</small>
+                <small className="text-xs text-gray-500 block">0-10kg: prix fixe, 11-14kg: +0.9DT/kg, 15kg+: prix doublé</small>
               </div>
               <div>
                 <label className="block text-base font-semibold text-gray-700 mb-1 ">Nombre de pièce</label>
