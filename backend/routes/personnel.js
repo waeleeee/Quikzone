@@ -129,28 +129,32 @@ router.post('/agency-managers', async (req, res) => {
       name,
       email,
       agency,
+      agencyType: typeof agency,
+      agencyLength: agency?.length,
       hasPassword: !!password,
       passwordLength: password?.length
     });
+    console.log('🔧 Full request body:', req.body);
 
-    // Restrict agencies
-    if (!ALLOWED_AGENCIES.includes(agency)) {
-      return res.status(400).json({
-        success: false,
-        message: "L'agence doit être l'une des 24 gouvernorats de Tunisie ou 'Siège'."
-      });
-    }
+    // Agency is now optional - no validation for now
+    console.log('🔧 Agency received:', {
+      agency,
+      agencyType: typeof agency,
+      agencyLength: agency?.length
+    });
 
-    // Check if agency exists in agencies table, if not create it
-    let agencyExists = await db.query('SELECT id FROM agencies WHERE name = $1', [agency]);
-    if (agencyExists.rows.length === 0) {
-      // Create new agency
-      console.log(`🏢 Creating new agency: ${agency} for governorate: ${governorate}`);
-      await client.query(`
-        INSERT INTO agencies (name, governorate, address, phone, email, status)
-        VALUES ($1, $2, $3, $4, $5, 'active')
-      `, [agency, governorate, address || '', phone || '', email || '']);
-      console.log(`✅ New agency created: ${agency}`);
+    // Check if agency exists in agencies table, if not create it (only if agency is provided)
+    if (agency && agency.trim()) {
+      let agencyExists = await db.query('SELECT id FROM agencies WHERE name = $1', [agency]);
+      if (agencyExists.rows.length === 0) {
+        // Create new agency
+        console.log(`🏢 Creating new agency: ${agency} for governorate: ${governorate}`);
+        await db.query(`
+          INSERT INTO agencies (name, governorate, address, phone, email, status)
+          VALUES ($1, $2, $3, $4, $5, 'active')
+        `, [agency, governorate, address || '', phone || '', email || '']);
+        console.log(`✅ New agency created: ${agency}`);
+      }
     }
 
     // Check if agency manager already exists by email
@@ -246,7 +250,7 @@ router.post('/agency-managers', async (req, res) => {
         RETURNING id, name, email, phone, governorate, address, agency, 
                   CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
                   created_at
-      `, [name, email, phone, governorate, address, agency, hashedPassword]);
+      `, [name, email, phone, governorate, address, agency || null, hashedPassword]);
       
       await client.query('COMMIT');
       
@@ -296,24 +300,26 @@ router.put('/agency-managers/:id', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-          // Restrict agencies
-    if (!ALLOWED_AGENCIES.includes(agency)) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        success: false,
-        message: "L'agence doit être l'une des 24 gouvernorats de Tunisie ou 'Siège'."
-      });
-    }
+          // Agency is now optional - only validate if provided
+          if (agency && agency.trim() && !ALLOWED_AGENCIES.includes(agency)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              success: false,
+              message: "L'agence doit être l'une des 24 gouvernorats de Tunisie ou 'Siège'."
+            });
+          }
 
-      // Only one chef per agency (except for current)
-      const existing = await client.query('SELECT id FROM agency_managers WHERE agency = $1 AND id != $2', [agency, id]);
-      if (existing.rows.length > 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({
-          success: false,
-          message: "Cette agence a déjà un chef d'agence."
-        });
-      }
+          // Only one chef per agency (except for current) - only if agency is provided
+          if (agency && agency.trim()) {
+            const existing = await client.query('SELECT id FROM agency_managers WHERE agency = $1 AND id != $2', [agency, id]);
+            if (existing.rows.length > 0) {
+              await client.query('ROLLBACK');
+              return res.status(400).json({
+                success: false,
+                message: "Cette agence a déjà un chef d'agence."
+              });
+            }
+          }
 
       // Build dynamic query for agency_managers table
       let managerQuery = `
@@ -2153,25 +2159,30 @@ router.post('/livreurs', async (req, res) => {
       const firstName = name.split(' ')[0] || name;
       const lastName = name.split(' ').slice(1).join(' ') || firstName;
       
-      // Create user account if password is provided
-      let userId = null;
-      if (hashedPassword) {
-        const userResult = await client.query(`
-          INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-          VALUES ($1, $2, $3, $4, $5, true)
-          RETURNING id
-        `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
-        userId = userResult.rows[0].id;
-        
-        // Assign "Livreurs" role
-        const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Livreurs']);
-        if (roleResult.rows.length > 0) {
-          await client.query(`
-            INSERT INTO user_roles (user_id, role_id)
-            VALUES ($1, $2)
-          `, [userId, roleResult.rows[0].id]);
-        }
-      }
+          // Create user account - password is required for livreurs
+    if (!hashedPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe est obligatoire pour créer un livreur'
+      });
+    }
+    
+    let userId = null;
+    const userResult = await client.query(`
+      INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
+      VALUES ($1, $2, $3, $4, $5, true)
+      RETURNING id
+    `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
+    userId = userResult.rows[0].id;
+    
+    // Assign "Livreurs" role
+    const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Livreurs']);
+    if (roleResult.rows.length > 0) {
+      await client.query(`
+        INSERT INTO user_roles (user_id, role_id)
+        VALUES ($1, $2)
+      `, [userId, roleResult.rows[0].id]);
+    }
       
       // Create driver
       const result = await client.query(`
@@ -2191,6 +2202,16 @@ router.post('/livreurs', async (req, res) => {
         cin_number, driving_license, car_number, car_type, insurance_number, agency,
         photo_url, personal_documents_url, car_documents_url, hashedPassword
       ]);
+
+      // Update user with agency information
+      if (agency) {
+        await client.query(`
+          UPDATE users 
+          SET agency = $1, governorate = $2
+          WHERE id = $3
+        `, [agency, governorate, userId]);
+        console.log('✅ User updated with agency:', agency);
+      }
 
       await client.query('COMMIT');
       

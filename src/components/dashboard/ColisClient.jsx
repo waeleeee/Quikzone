@@ -83,7 +83,6 @@ const ColisClient = () => {
             // Add shipper city information for timeline
             shipper_city: parcel.shipper_city || currentUser.governorate || "Tunis",
             // Keep original parcel data for timeline
-            tracking_number: parcel.tracking_number,
             created_at: parcel.created_at,
             type: parcel.type
           }));

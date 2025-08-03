@@ -128,6 +128,24 @@ const ColisTimeline = ({ parcel, onClose }) => {
   // Get current user for fallback city
   const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
   
+  // Debug: Log all parcel and user data
+  console.log('🔍 DEBUG - Full parcel data:', parcel);
+  console.log('🔍 DEBUG - Current user data:', currentUser);
+  console.log('🔍 DEBUG - Agency fields check:');
+  console.log('  - parcel?.shipper_agency:', parcel?.shipper_agency);
+  console.log('  - parcel?.agency:', parcel?.agency);
+  console.log('  - parcel?.shipper?.agency:', parcel?.shipper?.agency);
+  console.log('  - currentUser?.governorate:', currentUser?.governorate);
+  console.log('  - Final city value:', parcel?.shipper_agency || parcel?.agency || currentUser?.governorate || "Tunis");
+  
+  // Test: Log all shipper-related fields
+  console.log('🔍 DEBUG - All shipper fields:');
+  Object.keys(parcel || {}).forEach(key => {
+    if (key.includes('shipper') || key.includes('agency')) {
+      console.log(`  - ${key}:`, parcel[key]);
+    }
+  });
+  
   // Fetch tracking history when component mounts
   React.useEffect(() => {
     const fetchTrackingHistory = async () => {
@@ -161,10 +179,20 @@ const ColisTimeline = ({ parcel, onClose }) => {
   const timelineData = trackingHistory.map(record => {
     console.log('📅 Processing record:', record);
     const statusInfo = statusConfig[record.status] || statusConfig["En attente"];
+    
+    // Debug: Log agency values for each timeline item
+    const agencyValue = parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis";
+    console.log('🔍 DEBUG - Timeline item agency check:');
+    console.log('  - parcel?.shipper_agency:', parcel?.shipper_agency);
+    console.log('  - parcel?.agency:', parcel?.agency);
+    console.log('  - parcel?.shipper_city:', parcel?.shipper_city);
+    console.log('  - currentUser?.governorate:', currentUser?.governorate);
+    console.log('  - Final agency value:', agencyValue);
+    
     const timelineItem = {
       date: new Date(record.timestamp).toLocaleString('fr-FR'),
       label: record.status,
-      city: parcel?.shipper_city || currentUser?.governorate || "Tunis",
+      city: parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis",
       status: record.status,
       icon: statusInfo.icon,
       emoji: statusInfo.emoji,
@@ -186,7 +214,7 @@ const ColisTimeline = ({ parcel, onClose }) => {
     timelineData.push({
       date: parcel?.created_at ? new Date(parcel.created_at).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR'),
       label: "En attente",
-      city: parcel?.shipper_city || currentUser?.governorate || "Tunis",
+      city: parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis",
       status: "En attente",
       icon: statusConfig["En attente"].icon,
       emoji: statusConfig["En attente"].emoji,
@@ -199,7 +227,7 @@ const ColisTimeline = ({ parcel, onClose }) => {
       timelineData.push({
         date: parcel?.updated_at ? new Date(parcel.updated_at).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR'),
         label: "À enlever",
-        city: parcel?.shipper_city || currentUser?.governorate || "Tunis",
+        city: parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis",
         status: "À enlever",
         icon: statusConfig["À enlever"].icon,
         emoji: statusConfig["À enlever"].emoji,
@@ -213,7 +241,7 @@ const ColisTimeline = ({ parcel, onClose }) => {
       timelineData.push({
         date: parcel?.updated_at ? new Date(parcel.updated_at).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR'),
         label: "Enlevé",
-        city: parcel?.shipper_city || currentUser?.governorate || "Tunis",
+        city: parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis",
         status: "Enlevé",
         icon: statusConfig["Enlevé"].icon,
         emoji: statusConfig["Enlevé"].emoji,
@@ -227,7 +255,7 @@ const ColisTimeline = ({ parcel, onClose }) => {
       timelineData.push({
         date: parcel?.updated_at ? new Date(parcel.updated_at).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR'),
         label: currentStatus,
-        city: parcel?.shipper_city || currentUser?.governorate || "Tunis",
+        city: parcel?.shipper_agency || parcel?.agency || parcel?.shipper_city || currentUser?.governorate || "Tunis",
         status: currentStatus,
         icon: statusInfo.icon,
         emoji: statusInfo.emoji,

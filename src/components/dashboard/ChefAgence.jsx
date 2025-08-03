@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DataTable from "./common/DataTable";
 import Modal from "./common/Modal";
-import { apiService, warehousesService } from "../../services/api";
+import { apiService } from "../../services/api";
 
 // List of Tunisian governorates
 const gouvernorats = [
@@ -36,8 +36,7 @@ const ChefAgence = () => {
   const [memberModalMode, setMemberModalMode] = useState('add'); // 'add' or 'edit'
   const [searchMember, setSearchMember] = useState("");
   const [memberError, setMemberError] = useState("");
-  const [warehouses, setWarehouses] = useState([]);
-  const [warehousesLoading, setWarehousesLoading] = useState(true);
+
 
   // Fetch agency managers from backend
   useEffect(() => {
@@ -63,50 +62,7 @@ const ChefAgence = () => {
     fetchChefs();
   }, []);
 
-  // Fetch warehouses (Entrepôts) from backend
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      try {
-        setWarehousesLoading(true);
-        console.log('🔍 Frontend: Fetching warehouses...');
-        const response = await warehousesService.getWarehouses();
-        console.log('🔍 Frontend: Warehouses response:', response);
-        console.log('🔍 Frontend: Response type:', typeof response);
-        console.log('🔍 Frontend: Response keys:', Object.keys(response || {}));
-        
-        // Handle different response structures
-        let warehousesData = [];
-        if (response && response.success && response.data) {
-          warehousesData = Array.isArray(response.data) ? response.data : [];
-        } else if (Array.isArray(response)) {
-          warehousesData = response;
-        } else if (response && response.data && Array.isArray(response.data)) {
-          warehousesData = response.data;
-        }
-        
-        console.log('🔍 Frontend: Processed warehouses data:', warehousesData);
-        console.log('🔍 Frontend: Warehouses count:', warehousesData.length);
-        
-        if (warehousesData.length > 0) {
-          console.log('🔍 Frontend: First warehouse:', warehousesData[0]);
-        }
-        
-        setWarehouses(warehousesData);
-        
-        // If no warehouses found, show a message
-        if (warehousesData.length === 0) {
-          console.log('⚠️ Frontend: No warehouses found in database');
-        }
-      } catch (error) {
-        console.error('❌ Frontend: Error fetching warehouses:', error);
-        setWarehouses([]);
-      } finally {
-        setWarehousesLoading(false);
-      }
-    };
 
-    fetchWarehouses();
-  }, []);
 
   // Fetch agency members when viewing members
   useEffect(() => {
@@ -148,7 +104,6 @@ const ChefAgence = () => {
       password: '',
       phone: '',
       address: '',
-      agency: '',
       governorate: 'Tunis',
     });
     setShowEditModal(true);
@@ -188,7 +143,13 @@ const ChefAgence = () => {
           passwordLength: editChef.password?.length
         });
         
-        const result = await apiService.updateAgencyManager(editChef.id, editChef);
+        // Clean the data - remove empty agency field
+        const cleanData = { ...editChef };
+        if (!cleanData.agency || cleanData.agency.trim() === '') {
+          delete cleanData.agency;
+        }
+        
+        const result = await apiService.updateAgencyManager(editChef.id, cleanData);
         console.log('📊 Update result:', result);
         
         if (result && result.success) {
@@ -200,11 +161,19 @@ const ChefAgence = () => {
         }
       } else {
         // Create new agency manager
-        const result = await apiService.createAgencyManager(editChef);
+        // Clean the data - remove empty agency field
+        const cleanData = { ...editChef };
+        if (!cleanData.agency || cleanData.agency.trim() === '') {
+          delete cleanData.agency;
+        }
+        
+        const result = await apiService.createAgencyManager(cleanData);
         console.log('📊 Create result:', result);
         
-        if (result && result.success) {
-          setChefs([...chefs, result.data]);
+        // Handle both response formats
+        if (result && (result.success || result.id)) {
+          const newChef = result.data || result;
+          setChefs([...chefs, newChef]);
           alert(`Chef d'agence créé avec succès!\n\nInformations de connexion:\nEmail: ${editChef.email}\nMot de passe: ${editChef.password}\n\nLe chef d'agence peut maintenant se connecter avec ces identifiants.`);
         } else {
           throw new Error(result?.message || 'Failed to create agency manager');
@@ -304,32 +273,32 @@ const ChefAgence = () => {
   };
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Nom et prénom" },
-    { key: "email", header: "Email" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "Nom et prénom" },
+    { key: "email", label: "Email" },
     { 
       key: "phone", 
-      header: "Téléphone",
+      label: "Téléphone",
       render: (value) => value || "N/A"
     },
     { 
       key: "governorate", 
-      header: "Gouvernorat",
+      label: "Gouvernorat",
       render: (value) => value || "N/A"
     },
     { 
       key: "address", 
-      header: "Adresse",
+      label: "Adresse",
       render: (value) => value || "N/A"
     },
     { 
       key: "agency", 
-      header: "Depôt",
+      label: "Depôt",
       render: (value) => value || "N/A"
     },
     {
       key: "actions",
-      header: "Actions",
+      label: "Actions",
       render: (_, row) => (
         <div className="flex gap-2">
           <button
@@ -455,15 +424,7 @@ const ChefAgence = () => {
                 <select 
                   className="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-1 focus:ring-blue-500" 
                   value={editChef.governorate || 'Tunis'} 
-                  onChange={e => {
-                    const newGovernorate = e.target.value;
-                    const newAgency = generateUniqueAgencyName(newGovernorate);
-                    setEditChef({ 
-                      ...editChef, 
-                      governorate: newGovernorate,
-                      agency: newAgency
-                    });
-                  }} 
+                  onChange={e => setEditChef({ ...editChef, governorate: e.target.value })} 
                   required
                 >
                   {gouvernorats.map(gov => (
@@ -475,29 +436,7 @@ const ChefAgence = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1 ">Adresse</label>
                 <input type="text" className="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-1 focus:ring-blue-500" value={editChef.address || ''} onChange={e => setEditChef({ ...editChef, address: e.target.value })} placeholder="Adresse complète" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 ">Depôt</label>
-                <select 
-                  className="border border-gray-300 rounded-md px-3 py-2 w-full focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                  value={editChef.agency || ''} 
-                  onChange={e => setEditChef({ ...editChef, agency: e.target.value })} 
-                  required
-                >
-                  <option value="">Sélectionnez un dépôt</option>
-                  {warehousesLoading ? (
-                    <option value="" disabled>Chargement des dépôts...</option>
-                  ) : warehouses && warehouses.length > 0 ? (
-                    warehouses.map(warehouse => (
-                      <option key={warehouse.id} value={warehouse.name}>{warehouse.name}</option>
-                    ))
-                  ) : (
-                    <option value="" disabled>Aucun dépôt disponible</option>
-                  )}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  💡 Sélectionnez le dépôt (entrepôt) pour ce chef d'agence
-                </p>
-              </div>
+
             </div>
             <div className="flex justify-end space-x-3 mt-6">
               <button type="button" className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors" onClick={() => setShowEditModal(false)}>Annuler</button>

@@ -46,6 +46,7 @@ const Entrepots = () => {
     name: "",
     gouvernorat: "Tunis",
     manager: "",
+    assignedAgency: "",
     status: "Actif",
   });
   const [chefAgences, setChefAgences] = useState([]);
@@ -291,21 +292,26 @@ const Entrepots = () => {
 
   const fetchChefAgences = async () => {
     try {
-      console.log('🔍 Fetching Chef d\'agence users...');
-      const response = await fetch('http://localhost:5000/api/personnel/users?role=Chef d\'agence');
-      const data = await response.json();
+      console.log('🔍 Fetching available Chef d\'agence users...');
+      const { apiService } = await import('../../services/api');
+      const agencyManagersResponse = await apiService.getAgencyManagers();
       
-      if (data.success && data.data) {
-        const chefAgencesList = data.data.map(user => ({
-          id: user.id,
-          name: `${user.first_name} ${user.last_name}`,
-          email: user.email
-        }));
-        setChefAgences(chefAgencesList);
-        console.log('✅ Chef d\'agence users loaded:', chefAgencesList);
-      }
+      // Filter only agency managers without an agency assigned
+      const availableChefAgences = agencyManagersResponse.filter(manager => 
+        !manager.agency || manager.agency.trim() === ''
+      );
+      
+      const chefAgencesList = availableChefAgences.map(manager => ({
+        id: manager.id,
+        name: manager.name,
+        email: manager.email
+      }));
+      
+      setChefAgences(chefAgencesList);
+      console.log('✅ Available Chef d\'agence users loaded:', chefAgencesList);
+      console.log('📊 Total available:', chefAgencesList.length);
     } catch (error) {
-      console.error('❌ Error fetching Chef d\'agence users:', error);
+      console.error('❌ Error fetching available Chef d\'agence users:', error);
     }
   };
 
@@ -432,7 +438,7 @@ const Entrepots = () => {
           allUsers.push({
             id: driver.id,
             name: driver.name,
-            role: 'Livreur',
+            role: 'Livreurs',
             email: driver.email,
             phone: driver.phone,
             status: 'Actif',
@@ -602,6 +608,7 @@ const Entrepots = () => {
       gouvernorat: defaultGovernorate,
       address: "",
       manager: "",
+      assignedAgency: "",
       status: "Actif",
     });
     setIsModalOpen(true);
@@ -614,6 +621,7 @@ const Entrepots = () => {
       gouvernorat: warehouse.gouvernorat,
       address: warehouse.address || "",
       manager: warehouse.manager_id || warehouse.manager,
+      assignedAgency: "",
       status: warehouse.status,
     });
     setIsModalOpen(true);
@@ -652,6 +660,27 @@ const Entrepots = () => {
         status: formData.status
       };
 
+      // If a manager is selected and an agency is assigned, update the manager's agency
+      if (formData.manager && formData.assignedAgency) {
+        try {
+          console.log('🔧 Updating agency manager with new agency:', {
+            managerId: formData.manager,
+            newAgency: formData.assignedAgency
+          });
+          
+          const { apiService } = await import('../../services/api');
+          await apiService.updateAgencyManager(formData.manager, {
+            agency: formData.assignedAgency
+          });
+          
+          console.log('✅ Agency manager updated successfully');
+        } catch (error) {
+          console.error('❌ Error updating agency manager:', error);
+          alert('Erreur lors de la mise à jour de l\'agence du chef d\'agence');
+          return;
+        }
+      }
+
       if (editingWarehouse) {
         await warehousesService.updateWarehouse(editingWarehouse.id, warehouseData);
         // Refresh the warehouses list
@@ -660,8 +689,9 @@ const Entrepots = () => {
         await warehousesService.createWarehouse(warehouseData);
         // Refresh the warehouses list
         await fetchWarehouses();
-    }
-    setIsModalOpen(false);
+      }
+      
+      setIsModalOpen(false);
     } catch (error) {
       console.error('❌ Error saving warehouse:', error);
       alert('Erreur lors de la sauvegarde de l\'entrepôt');
@@ -670,10 +700,19 @@ const Entrepots = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [name]: value,
+      };
+      
+      // Auto-fill agency field with warehouse name when warehouse name changes
+      if (name === 'name' && value.trim()) {
+        newData.assignedAgency = value.trim();
+      }
+      
+      return newData;
+    });
   };
 
   const handleStatusCardClick = async (status, count) => {
@@ -1192,12 +1231,37 @@ const Entrepots = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Sélectionnez un responsable</option>
-              {chefAgences.map((chef) => (
-                <option key={chef.id} value={chef.id}>
-                  {chef.name} ({chef.email})
-                </option>
-              ))}
+              {chefAgences.length > 0 ? (
+                chefAgences.map((chef) => (
+                  <option key={chef.id} value={chef.id}>
+                    {chef.name} ({chef.email})
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Aucun chef d'agence disponible (tous ont une agence assignée)</option>
+              )}
             </select>
+            {chefAgences.length === 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Créez d'abord un chef d'agence sans agence assignée
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Agence à assigner au responsable
+            </label>
+            <input
+              type="text"
+              name="assignedAgency"
+              value={formData.assignedAgency || ''}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Entrez le nom de l'agence à assigner"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Cette agence sera automatiquement le nom de l'entrepôt et sera assignée au chef d'agence sélectionné
+            </p>
           </div>
             <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

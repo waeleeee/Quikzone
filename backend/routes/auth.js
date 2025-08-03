@@ -37,12 +37,12 @@ router.post('/login', async (req, res) => {
     let userResult = await db.query(`
       SELECT 
         u.id, u.username, u.email, u.password_hash, u.first_name, u.last_name,
-        u.phone, u.is_active, u.last_login,
-        r.name as role, r.permissions
+        u.phone, u.is_active, u.last_login, u.agency, u.governorate,
+        r.name as role
       FROM users u
-      JOIN user_roles ur ON u.id = ur.user_id
-      JOIN roles r ON ur.role_id = r.id
-      WHERE (u.email = $1 OR u.username = $1) AND u.is_active = true AND ur.is_active = true
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE (u.email = $1 OR u.username = $1) AND u.is_active = true
     `, [email]);
 
     let user = null;
@@ -119,6 +119,8 @@ router.post('/login', async (req, res) => {
       name: user.name || `${user.first_name} ${user.last_name}`,
       phone: user.phone,
       role: user.role,
+      agency: user.agency,
+      governorate: user.governorate,
       permissions: typeof user.permissions === 'string' 
         ? JSON.parse(user.permissions) 
         : user.permissions,

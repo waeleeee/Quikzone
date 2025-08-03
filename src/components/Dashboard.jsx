@@ -24,6 +24,8 @@ import PaimentExpediteur from "./dashboard/PaimentExpediteur";
 import CommercialPayments from "./dashboard/CommercialPayments";
 import ClientPayments from "./dashboard/ClientPayments";
 import Reclamation from "./dashboard/Reclamation";
+import Demande from "./dashboard/Demande";
+import PickupMissions from "./dashboard/PickupMissions";
 
 const Dashboard = ({ selectedKey = "dashboard" }) => {
   const navigate = useNavigate();
@@ -124,6 +126,15 @@ const Dashboard = ({ selectedKey = "dashboard" }) => {
     }
     if (selectedKey === "reclamation" && checkAccess("reclamation")) {
       return <Reclamation />;
+    }
+    if (selectedKey === "demande" && checkAccess("demands")) {
+      return <Demande />;
+    }
+    if (selectedKey === "pickup_missions" && checkAccess("pickup_missions")) {
+      return <PickupMissions />;
+    }
+    if (selectedKey === "livreur_dashboard" && checkAccess("pickup_dashboard")) {
+      return <LivreurDashboard />;
     }
 
     // Default fallback - show dashboard home

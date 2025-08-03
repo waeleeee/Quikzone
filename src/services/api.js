@@ -264,7 +264,7 @@ const mockUsers = [
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -1395,6 +1395,8 @@ export const apiService = {
       const response = await api.post('/personnel/agency-managers', managerData);
       console.log('🔧 Frontend: Raw response:', response);
       console.log('🔧 Frontend: Response data:', response.data);
+      console.log('🔧 Frontend: Response data type:', typeof response.data);
+      console.log('🔧 Frontend: Response data keys:', Object.keys(response.data || {}));
       return response.data;
     } catch (error) {
       console.error('Create agency manager error:', error);
@@ -1627,6 +1629,123 @@ export const apiService = {
       console.error('Delete complaint error:', error);
       throw new Error('Failed to delete complaint');
     }
+  },
+
+  // Demands API functions
+  getDemands: async (params = '') => {
+    try {
+      console.log('🔍 Calling demands API with params:', params);
+      const response = await api.get(`/demands?${params}`);
+      console.log('📡 Demands API response:', response);
+      console.log('📡 Demands API response type:', typeof response);
+      return response;
+    } catch (error) {
+      console.error('❌ Demands API error:', error);
+      console.error('❌ Demands API error response:', error.response);
+      throw error;
+    }
+  },
+
+  getDemand: async (id) => {
+    try {
+      console.log('🔍 getDemand called with id:', id);
+      const response = await api.get(`/demands/${id}`);
+      console.log('📡 getDemand response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ getDemand error:', error);
+      throw error;
+    }
+  },
+
+  createDemand: async (demandData) => {
+    try {
+      console.log('🚀 createDemand called with data:', demandData);
+      const response = await api.post('/demands', demandData);
+      console.log('📡 createDemand response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ createDemand error:', error);
+      throw error;
+    }
+  },
+
+  updateDemandStatus: async (id, status, reviewNotes) => {
+    try {
+      console.log('🔄 updateDemandStatus called with id:', id, 'status:', status);
+      const response = await api.put(`/demands/${id}/status`, { status, review_notes: reviewNotes });
+      console.log('📡 updateDemandStatus response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ updateDemandStatus error:', error);
+      throw error;
+    }
+  },
+
+  deleteDemand: async (id) => {
+    try {
+      console.log('🗑️ deleteDemand called with id:', id);
+      const response = await api.delete(`/demands/${id}`);
+      console.log('📡 deleteDemand response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ deleteDemand error:', error);
+      throw error;
+    }
+  },
+
+  getAvailableParcels: async (expediteurEmail) => {
+    try {
+      console.log('🔍 getAvailableParcels called for:', expediteurEmail);
+      const response = await api.get(`/demands/available-parcels/${encodeURIComponent(expediteurEmail)}`);
+      console.log('📡 getAvailableParcels response:', response);
+      console.log('📡 getAvailableParcels response type:', typeof response);
+      return response;
+    } catch (error) {
+      console.error('❌ getAvailableParcels error:', error);
+      throw error;
+    }
+  },
+
+  scanParcel: async (demandId, trackingNumber) => {
+    try {
+      console.log('📱 scanParcel called with demandId:', demandId, 'trackingNumber:', trackingNumber);
+      const response = await api.put(`/demands/${demandId}/scan-parcel`, { tracking_number: trackingNumber });
+      console.log('📡 scanParcel response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ scanParcel error:', error);
+      throw error;
+    }
+  },
+
+  getAcceptedMissions: async () => {
+    try {
+      console.log('🔍 Calling accepted missions API...');
+      const response = await api.get('/demands?status=Accepted');
+      console.log('📡 Accepted missions API response:', response);
+      console.log('📡 Response structure:', {
+        hasDemands: !!response.demands,
+        demandsLength: response.demands?.length,
+        responseKeys: Object.keys(response || {})
+      });
+      return response.demands || response || [];
+    } catch (error) {
+      console.error('❌ getAcceptedMissions error:', error);
+      throw error;
+    }
+  },
+
+  getParcelsByDemand: async (demandId) => {
+    try {
+      console.log('🔍 Calling parcels by demand API for demand ID:', demandId);
+      const response = await api.get(`/demands/${demandId}/parcels`);
+      console.log('📡 Parcels by demand API response:', response);
+      return response.data || response;
+    } catch (error) {
+      console.error('❌ getParcelsByDemand error:', error);
+      throw error;
+    }
   }
 };
 
@@ -1639,6 +1758,17 @@ export const {
   updateComplaint,
   deleteComplaint
 } = apiService;
+
+// Export demands functions
+export const demandsService = {
+  getDemands: apiService.getDemands,
+  getDemand: apiService.getDemand,
+  createDemand: apiService.createDemand,
+  updateDemandStatus: apiService.updateDemandStatus,
+  deleteDemand: apiService.deleteDemand,
+  getAvailableParcels: apiService.getAvailableParcels,
+  scanParcel: apiService.scanParcel
+};
 
 // Warehouses API functions
 export const warehousesService = {
@@ -1708,6 +1838,81 @@ export const warehousesService = {
   }
 }; 
 
+// Pickup Missions API functions
+export const pickupMissionsService = {
+  getPickupMissions: async (params = '') => {
+    try {
+      console.log('🔍 Calling pickup missions API with params:', params);
+      const response = await api.get(`/pickup-missions?${params}`);
+      console.log('📡 Pickup Missions API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Pickup Missions API error:', error);
+      throw error;
+    }
+  },
+
+  getPickupMission: async (id) => {
+    try {
+      console.log('🔍 Calling pickup mission details API for ID:', id);
+      const response = await api.get(`/pickup-missions/${id}`);
+      console.log('📡 Pickup Mission Details API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Pickup Mission Details API error:', error);
+      throw error;
+    }
+  },
+
+  createPickupMission: async (missionData) => {
+    try {
+      console.log('🚀 createPickupMission called with data:', missionData);
+      const response = await api.post('/pickup-missions', missionData);
+      console.log('📡 createPickupMission response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ createPickupMission error:', error);
+      throw error;
+    }
+  },
+
+  updatePickupMissionStatus: async (missionId, status, notes) => {
+    try {
+      console.log('🔄 updatePickupMissionStatus called for mission:', missionId, 'with status:', status);
+      const response = await api.put(`/pickup-missions/${missionId}/status`, { status, notes });
+      console.log('📡 updatePickupMissionStatus response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ updatePickupMissionStatus error:', error);
+      throw error;
+    }
+  },
+
+  getAvailableLivreurs: async () => {
+    try {
+      console.log('🔍 Calling available livreurs API');
+      const response = await api.get('/pickup-missions/available-livreurs');
+      console.log('📡 Available Livreurs API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Available Livreurs API error:', error);
+      throw error;
+    }
+  },
+
+  getAcceptedDemands: async () => {
+    try {
+      console.log('🔍 Calling accepted demands API');
+      const response = await api.get('/pickup-missions/accepted-demands');
+      console.log('📡 Accepted Demands API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Accepted Demands API error:', error);
+      throw error;
+    }
+  }
+};
+
 // Missions de collecte (missions_pickup)
 export const missionsPickupService = {
   getMissionsPickup: async (params = {}) => {
@@ -1727,11 +1932,26 @@ export const missionsPickupService = {
   createMissionPickup: async (data) => {
     try {
       console.log('🚀 createMissionPickup called with data:', data);
+      console.log('🔍 Data type:', typeof data);
+      console.log('🔍 Data keys:', Object.keys(data));
+      console.log('🔍 livreur_id:', data.livreur_id, 'type:', typeof data.livreur_id);
+      console.log('🔍 demand_ids:', data.demand_ids, 'type:', typeof data.demand_ids, 'length:', data.demand_ids?.length);
+      
       const response = await api.post('/missions-pickup', data);
       console.log('📡 createMissionPickup response:', response);
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response data:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ createMissionPickup error:', error);
+      console.error('❌ Error name:', error.name);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error statusText:', error.response?.statusText);
+      console.error('❌ Error data:', error.response?.data);
+      console.error('❌ Error headers:', error.response?.headers);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
       throw error;
     }
   },
@@ -1763,6 +1983,91 @@ export const missionsPickupService = {
       console.error('❌ getMissionSecurityCode error:', error);
       console.error('❌ Error response:', error.response?.data);
       console.error('❌ Error status:', error.response?.status);
+      throw error;
+    }
+  },
+  
+  getMissionPickup: async (id) => {
+    try {
+      console.log('🔍 getMissionPickup called with id:', id);
+      const response = await api.get(`/missions-pickup/${id}`);
+      console.log('📡 getMissionPickup response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ getMissionPickup error:', error);
+      throw error;
+    }
+  },
+  
+  scanParcel: async (missionId, trackingNumber) => {
+    try {
+      console.log('📱 scanParcel called with missionId:', missionId, 'trackingNumber:', trackingNumber);
+      const response = await api.put(`/missions-pickup/${missionId}/scan-parcel`, { tracking_number: trackingNumber });
+      console.log('📡 scanParcel response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ scanParcel error:', error);
+      throw error;
+    }
+  },
+
+  // New functions for driver pickup missions
+  getDriverPickupMissions: async (driverId) => {
+    try {
+      console.log('🔍 getDriverPickupMissions called with driverId:', driverId);
+      const response = await api.get(`/missions-pickup/driver/${driverId}`);
+      console.log('📡 getDriverPickupMissions response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ getDriverPickupMissions error:', error);
+      throw error;
+    }
+  },
+
+  acceptPickupMission: async (missionId) => {
+    try {
+      console.log('✅ acceptPickupMission called with missionId:', missionId);
+      const response = await api.put(`/missions-pickup/${missionId}/accept`);
+      console.log('📡 acceptPickupMission response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ acceptPickupMission error:', error);
+      throw error;
+    }
+  },
+
+  refusePickupMission: async (missionId) => {
+    try {
+      console.log('❌ refusePickupMission called with missionId:', missionId);
+      const response = await api.put(`/missions-pickup/${missionId}/refuse`);
+      console.log('📡 refusePickupMission response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ refusePickupMission error:', error);
+      throw error;
+    }
+  },
+
+  updateMissionParcelsStatus: async (missionId, status) => {
+    try {
+      console.log('🔄 updateMissionParcelsStatus called with missionId:', missionId, 'status:', status);
+      const response = await api.put(`/missions-pickup/${missionId}/update-parcels-status`, { status });
+      console.log('📡 updateMissionParcelsStatus response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ updateMissionParcelsStatus error:', error);
+      throw error;
+    }
+  },
+
+  updateParcelStatus: async (parcelId, status) => {
+    try {
+      console.log('🔄 updateParcelStatus called with parcelId:', parcelId, 'status:', status);
+      const response = await api.put(`/parcels/${parcelId}/status`, { status });
+      console.log('📡 updateParcelStatus response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ updateParcelStatus error:', error);
       throw error;
     }
   },

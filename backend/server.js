@@ -19,6 +19,8 @@ const uploadRoutes = require('./routes/upload');
 const missionsPickupRoutes = require('./routes/missionsPickup');
 const deliveryMissionsRoutes = require('./routes/deliveryMissions');
 const agenciesRoutes = require('./routes/agencies');
+const demandsRoutes = require('./routes/demands');
+const pickupMissionsRoutes = require('./routes/pickupMissions');
 
 const { authenticateToken } = require('./middleware/auth');
 
@@ -112,6 +114,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/missions-pickup', missionsPickupRoutes);
 app.use('/api/delivery-missions', deliveryMissionsRoutes);
 app.use('/api/agencies', agenciesRoutes);
+app.use('/api/demands', demandsRoutes);
+app.use('/api/pickup-missions', pickupMissionsRoutes);
 
 // 404 handler
 app.use('/api/*', (req, res) => {

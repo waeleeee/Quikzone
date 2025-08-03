@@ -21,7 +21,7 @@ const HomePage = () => {
             <li><a href="#contact" className="hover:text-red-600 transition">Contact</a></li>
             <li><a href="#complaints" className="hover:text-red-600 transition">Réclamations</a></li>
             <li><a href="#partner" className="hover:text-red-600 transition">Devenir partenaire</a></li>
-            <li><a href="/login" className="bg-red-600 text-white px-2.5 py-1 rounded-lg hover:bg-red-700 transition text-xs">Dashboard</a></li>
+            <li><a href="/" className="bg-red-600 text-white px-2.5 py-1 rounded-lg hover:bg-red-700 transition text-xs">Dashboard</a></li>
           </ul>
         </div>
       </nav>
@@ -46,7 +46,7 @@ const HomePage = () => {
                 <div className="absolute bottom-6 left-6 z-20 text-white text-2xl font-extrabold drop-shadow-lg">
                   Rapide. Fiable. Fièrement Tunisien !
                 </div>
-                <a href="/login" className="absolute bottom-6 right-6 z-20 bg-red-600 text-white px-6 py-3 rounded-full text-base font-bold shadow-lg hover:bg-red-700 transition">
+                <a href="/" className="absolute bottom-6 right-6 z-20 bg-red-600 text-white px-6 py-3 rounded-full text-base font-bold shadow-lg hover:bg-red-700 transition">
                   Commencer
                 </a>
               </div>
@@ -56,7 +56,7 @@ const HomePage = () => {
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-gray-900 relative z-20">Livraison Ultra-Rapide, Redéfinie</h1>
           <p className="text-base md:text-lg mb-6 text-gray-700 max-w-2xl mx-auto relative z-20 font-semibold">Nourriture, courses ou colis—livrés en minutes avec style et rapidité.</p>
           <div className="space-x-4 flex justify-center mb-4 relative z-20">
-            <a href="/login" className="bg-red-600 text-white px-8 py-3 rounded-full text-base font-semibold hover:bg-red-700 hover:shadow-xl transition">Commencer</a>
+            <a href="/" className="bg-red-600 text-white px-8 py-3 rounded-full text-base font-semibold hover:bg-red-700 hover:shadow-xl transition">Commencer</a>
             <a href="#learn-more" className="bg-gray-200 text-black px-8 py-3 rounded-full text-base font-semibold hover:bg-gray-300 transition">En savoir plus</a>
           </div>
         </div>
@@ -322,7 +322,7 @@ const HomePage = () => {
                   <p className="text-red-100 text-sm">Rejoignez la révolution de la livraison ultra-rapide</p>
                 </div>
               </div>
-              <a href="/login" className="bg-white text-red-600 px-6 py-3 rounded-full text-base font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+              <a href="/" className="bg-white text-red-600 px-6 py-3 rounded-full text-base font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                 <i className="fas fa-rocket mr-2"></i>
                 Commencer maintenant
               </a>
@@ -466,7 +466,7 @@ const HomePage = () => {
                   <p className="text-red-100 text-sm">Rejoignez des milliers de clients satisfaits</p>
                 </div>
               </div>
-              <a href="/login" className="bg-white text-red-600 px-6 py-3 rounded-full text-base font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+              <a href="/" className="bg-white text-red-600 px-6 py-3 rounded-full text-base font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                 <i className="fas fa-play mr-2"></i>
                 Commencer maintenant
               </a>
@@ -548,7 +548,7 @@ const HomePage = () => {
             <div className="inline-flex items-center space-x-4 bg-white rounded-full px-8 py-4 shadow-lg">
               <i className="fas fa-rocket text-2xl text-red-500 animate-bounce"></i>
               <span className="text-lg font-semibold text-gray-800">Prêt à rejoindre notre histoire de succès ?</span>
-              <a href="/login" className="bg-red-600 text-white px-6 py-2 rounded-full hover:bg-red-700 transition-colors font-semibold">
+              <a href="/" className="bg-red-600 text-white px-6 py-2 rounded-full hover:bg-red-700 transition-colors font-semibold">
                 Commencer maintenant
               </a>
             </div>
@@ -878,7 +878,7 @@ const HomePage = () => {
                   <p className="text-red-100">Devenez l'un de nos clients satisfaits</p>
                 </div>
               </div>
-              <a href="/login" className="bg-white text-red-600 px-8 py-4 rounded-full text-lg font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+              <a href="/" className="bg-white text-red-600 px-8 py-4 rounded-full text-lg font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                 <i className="fas fa-user-plus mr-2"></i>
                 Rejoindre maintenant
               </a>

@@ -11,7 +11,8 @@ const DataTable = ({
   showSearch = true,
   showActions = true,
   onRowClick,
-  customActionButtons
+  customActionButtons,
+  onScan
 }) => {
   // Ensure data is always an array and handle null/undefined items
   const safeData = Array.isArray(data) ? data : [];
@@ -38,62 +39,59 @@ const DataTable = ({
 
       {/* Table Container with Horizontal Scroll */}
       <div className="overflow-x-auto">
-        <div className="inline-block min-w-full align-middle">
-          <div className="overflow-hidden border border-gray-200 rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {columns.map((column, index) => (
-                    <th
-                      key={index}
-                      className="px-3 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                      style={{ minWidth: column.minWidth || 'auto' }}
-                    >
-                      {column.header}
-                    </th>
-                  ))}
-                  {showActions && (
-                    <th className="px-3 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.map((item, index) => (
-                  <tr
-                    key={index}
-                    className={`hover:bg-gray-50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
-                    onClick={onRowClick ? () => onRowClick(item) : undefined}
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map((column, index) => (
+                <th
+                  key={index}
+                  className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200"
+                  style={{ minWidth: column.minWidth || '120px' }}
+                >
+                  {column.label}
+                </th>
+              ))}
+              {showActions && (
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
+                  Actions
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            {filteredData.map((item, index) => (
+              <tr
+                key={index}
+                className={`hover:bg-gray-50 transition-colors duration-150 ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={onRowClick ? () => onRowClick(item) : undefined}
+              >
+                {columns.map((column, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100"
+                    style={{ minWidth: column.minWidth || '120px' }}
                   >
-                    {columns.map((column, colIndex) => (
-                      <td
-                        key={colIndex}
-                        className="px-3 py-3 whitespace-nowrap text-sm text-gray-900"
-                        style={{ minWidth: column.minWidth || 'auto' }}
-                      >
-                        {column.render ? column.render(item[column.key], item) : (item[column.key] || '-')}
-                      </td>
-                    ))}
-                    {showActions && (
-                      <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
-                        {customActionButtons ? (
-                          customActionButtons(item)
-                        ) : (
-                          <ActionButtons
-                            onView={onRowClick ? (e) => { e.stopPropagation(); onRowClick(item); } : undefined}
-                            onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
-                            onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
-                          />
-                        )}
-                      </td>
-                    )}
-                  </tr>
+                    {column.render ? column.render(item[column.key], item) : (item[column.key] || '-')}
+                  </td>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                {showActions && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-b border-gray-100">
+                    {customActionButtons ? (
+                      customActionButtons(item)
+                    ) : (
+                      <ActionButtons
+                        onView={onRowClick ? (e) => { e.stopPropagation(); onRowClick(item); } : undefined}
+                        onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
+                        onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
+                        onScan={onScan ? (e) => { e.stopPropagation(); onScan(item); } : undefined}
+                      />
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Empty State */}

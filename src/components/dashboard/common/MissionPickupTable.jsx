@@ -20,34 +20,34 @@ const statusColors = {
   "Mission terminée": "bg-green-100 text-green-800",
 };
 
-const MissionPickupTable = ({ missions, onView, onEdit, onDelete, searchTerm, onSearchChange, securityCodes = {} }) => {
+const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, searchTerm, onSearchChange, securityCodes = {} }) => {
   const columns = [
-    { key: "mission_number", header: "N° Mission" },
+    { key: "mission_number", label: "N° Mission" },
     { 
       key: "driver", 
-      header: "Livreur",
+      label: "Livreur",
       render: (driver) => driver?.name || "Non assigné"
     },
     { 
       key: "shipper", 
-      header: "Expéditeur",
+      label: "Expéditeur",
       render: (shipper) => shipper?.name || "Non assigné"
     },
     {
       key: "parcels",
-      header: "Colis",
+      label: "Colis",
       render: (parcels) => (
         <span className="text-xs text-gray-700">{parcels?.map(c => c.id).join(", ") || "Aucun colis"}</span>
       ),
     },
     { 
       key: "scheduled_time", 
-      header: "Date prévue",
+      label: "Date prévue",
       render: (date) => new Date(date).toLocaleString('fr-FR')
     },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[value] || "bg-gray-100 text-gray-800"}`}>
           {value}
@@ -56,7 +56,7 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, searchTerm, on
     },
     {
       key: "security_code",
-      header: "Code de Sécurité",
+      label: "Code de Sécurité",
       render: (_, mission) => {
         const code = securityCodes[mission.id];
         if (!code) return <span className="text-gray-400 text-xs">Non généré</span>;
@@ -90,6 +90,7 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, searchTerm, on
       showActions={true}
       onEdit={onEdit}
       onDelete={onDelete}
+      onScan={onScan}
       onRowClick={onView}
     />
   );

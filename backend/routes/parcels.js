@@ -26,7 +26,8 @@ router.get('/', async (req, res) => {
         s.tax_number as shipper_tax_number,
         s.company_governorate as shipper_company_governorate,
         s.company_address as shipper_company_address,
-        s.city as shipper_city
+        s.city as shipper_city,
+        s.agency as shipper_agency
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
       WHERE 1=1
@@ -137,7 +138,8 @@ router.get('/expediteur/:email', async (req, res) => {
         s.tax_number as shipper_tax_number,
         s.company_governorate as shipper_company_governorate,
         s.company_address as shipper_company_address,
-        s.city as shipper_city
+        s.city as shipper_city,
+        s.agency as shipper_agency
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
       WHERE p.shipper_id = $1
@@ -668,7 +670,8 @@ router.get('/:id', async (req, res) => {
         s.tax_number as shipper_tax_number,
         s.company_governorate as shipper_company_governorate,
         s.company_address as shipper_company_address,
-        s.city as shipper_city
+        s.city as shipper_city,
+        s.agency as shipper_agency
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
       WHERE p.id = $1

@@ -248,7 +248,7 @@ const DashboardHome = () => {
       const drivers = await apiService.getDrivers();
       const driversInAgency = drivers.filter(driver => driver.agency === agencyManager.governorate);
       driversInAgency.forEach(driver => {
-        allUsers.push({ role: 'Livreur', created_at: driver.created_at });
+        allUsers.push({ role: 'Livreurs', created_at: driver.created_at });
       });
       
       // Fetch commercials
@@ -786,6 +786,14 @@ const DashboardHome = () => {
               <p className="text-sm text-red-600 font-medium">Connecté en tant que</p>
               <p className="font-bold text-red-800 text-lg">{currentUser.name || currentUser.firstName || currentUser.email || 'Utilisateur'}</p>
               <p className="text-xs text-red-500 bg-red-100 px-2 py-1 rounded-full">{currentUser.role}</p>
+              {currentUser?.role !== 'Admin' && currentUser?.agency && (
+                <p className="text-xs text-red-600 mt-1 font-medium">{currentUser.agency}</p>
+              )}
+              {currentUser?.role !== 'Admin' && currentUser?.governorate && !currentUser?.agency && (
+                <p className="text-xs text-red-600 mt-1 font-medium">{currentUser.governorate}</p>
+              )}
+
+
             </div>
             <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
               {(currentUser.name || currentUser.firstName || currentUser.email || 'U').charAt(0).toUpperCase()}

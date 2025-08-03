@@ -21,7 +21,9 @@ export const ROLE_PERMISSIONS = {
     entrepots: true,
     paiment_expediteur: true,
     reclamation: true,
-    commercial_payments: true // Add access to commercial payments management
+    commercial_payments: true, // Add access to commercial payments management
+    demands: true, // Add access to demands management
+    pickup_missions: true // Add access to pickup missions management
   },
 
   // COMMERCIAL - Access to their own data and related modules
@@ -42,7 +44,9 @@ export const ROLE_PERMISSIONS = {
     entrepots: false,
     paiment_expediteur: true,
     reclamation: true,
-    commercial_payments: true
+    commercial_payments: true,
+    demands: true, // Can view demands from their expediteurs
+    pickup_missions: true // Can view pickup missions for their expediteurs
   },
 
   // FINANCE - Access to financial operations
@@ -98,7 +102,9 @@ export const ROLE_PERMISSIONS = {
     },
     expediteur: true, // Can manage clients in their agency
     colis: true, // Can manage parcels in their agency
+    demands: true, // Can review demands from their agency
     pickup: true, // Full access to pickup missions
+    pickup_missions: true, // Full access to pickup missions management
     pickup_client: true, // Full access to delivery missions
     secteurs: true, // Can manage sectors in their agency
     entrepots: true, // Can manage local warehouses
@@ -121,6 +127,7 @@ export const ROLE_PERMISSIONS = {
     colis: true, // Full access to manage parcels
     pickup: true, // Can view and manage pickup missions
     pickup_client: true, // Can view and manage delivery missions
+    pickup_missions: true, // Can view and manage pickup missions
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: false, // Limited access
@@ -143,6 +150,7 @@ export const ROLE_PERMISSIONS = {
     pickup: false, // No pickup menu - they see missions in their dashboard
     pickup_client: false, // No pickup client menu - they see delivery missions separately
     delivery_missions: true, // Can access delivery missions page
+    pickup_dashboard: true, // Can access pickup missions dashboard
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: false, // No access
@@ -166,7 +174,8 @@ export const ROLE_PERMISSIONS = {
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: true, // Can view their payment history
-    reclamation: true // Can create and track complaints
+    reclamation: true, // Can create and track complaints
+    demands: true // Can create and manage their own demands
   }
 };
 
@@ -360,6 +369,19 @@ export const getFilteredMenu = (userRole) => {
     });
   }
 
+  // Add pickup missions dashboard for livreurs
+  if (permissions.pickup_dashboard) {
+    baseMenu.push({
+      label: "Mes Missions de Pickup",
+      key: "livreur_dashboard",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      )
+    });
+  }
+
   if (permissions.secteurs) {
     baseMenu.push({
       label: "Secteurs",
@@ -415,6 +437,30 @@ export const getFilteredMenu = (userRole) => {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      )
+    });
+  }
+
+  if (permissions.demands) {
+    baseMenu.push({
+      label: "Demandes",
+      key: "demande",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    });
+  }
+
+  if (permissions.pickup_missions) {
+    baseMenu.push({
+      label: "Missions de Collecte",
+      key: "pickup_missions",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       )
     });

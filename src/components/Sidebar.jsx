@@ -58,6 +58,17 @@ const Sidebar = ({ onSelect, selectedKey }) => {
             <div className="text-[10px] text-[#D32F2F] font-medium mt-0.5">
               {currentUser?.role || 'Administrateur'}
             </div>
+            {currentUser?.role !== 'Admin' && currentUser?.agency && (
+              <div className="text-[10px] text-gray-500 mt-0.5">
+                {currentUser.agency}
+              </div>
+            )}
+            {currentUser?.role !== 'Admin' && currentUser?.governorate && !currentUser?.agency && (
+              <div className="text-[10px] text-gray-500 mt-0.5">
+                {currentUser.governorate}
+              </div>
+            )}
+
           </div>
         </div>
       </div>
