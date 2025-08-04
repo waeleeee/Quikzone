@@ -40,13 +40,13 @@ const DashboardReport = ({ isOpen, onClose, currentUser, roleSpecificStats, expe
 
     const baseData = {
       reportDate,
-      userInfo: {
-        name: currentUser?.name || currentUser?.firstName || currentUser?.email || 'Utilisateur',
-        role: currentUser?.role || 'Utilisateur',
+                  userInfo: {
+              name: currentUser?.name || currentUser?.firstName || currentUser?.email || 'Utilisateur',
+              role: currentUser?.role || 'Utilisateur',
         email: currentUser?.email || 'N/A'
       },
       statistics: roleSpecificStats?.cards || [],
-      role: currentUser?.role || 'Utilisateur'
+              role: currentUser?.role || 'Utilisateur'
     };
 
     // Add role-specific data

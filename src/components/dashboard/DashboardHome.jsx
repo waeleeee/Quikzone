@@ -784,7 +784,7 @@ const DashboardHome = () => {
             </button>
             <div className="text-right">
               <p className="text-sm text-red-600 font-medium">Connecté en tant que</p>
-              <p className="font-bold text-red-800 text-lg">{currentUser.name || currentUser.firstName || currentUser.email || 'Utilisateur'}</p>
+                              <p className="font-bold text-red-800 text-lg">{currentUser.name || currentUser.firstName || currentUser.email || 'Utilisateur'}</p>
               <p className="text-xs text-red-500 bg-red-100 px-2 py-1 rounded-full">{currentUser.role}</p>
               {currentUser?.role !== 'Admin' && currentUser?.agency && (
                 <p className="text-xs text-red-600 mt-1 font-medium">{currentUser.agency}</p>

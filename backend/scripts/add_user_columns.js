@@ -16,12 +16,12 @@ async function addUserColumns() {
     
     await client.query('BEGIN');
     
-    // Add role column
-    console.log('➕ Adding role column...');
-    await client.query(`
-      ALTER TABLE users 
-      ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Utilisateur'
-    `);
+            // Add role column
+        console.log('➕ Adding role column...');
+        await client.query(`
+          ALTER TABLE users
+          ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Utilisateur'
+        `);
     
     // Add agency column
     console.log('➕ Adding agency column...');
