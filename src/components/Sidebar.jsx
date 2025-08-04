@@ -53,7 +53,7 @@ const Sidebar = ({ onSelect, selectedKey }) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-semibold text-gray-900 truncate">
-              {currentUser?.name || 'Utilisateur'}
+                              {currentUser?.name || 'Utilisateur'}
             </div>
             <div className="text-[10px] text-gray-600 truncate">
               {currentUser?.email || 'user@quickzone.tn'}

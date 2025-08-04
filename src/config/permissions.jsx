@@ -225,7 +225,7 @@ export const ROLE_PERMISSIONS = {
     reclamation: false
   },
 
-  // UTILISATEUR - Basic access (fallback role)
+    // UTILISATEUR - Basic access (fallback role)
   'Utilisateur': {
     dashboard: true,
     personnel: {

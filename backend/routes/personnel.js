@@ -286,11 +286,14 @@ router.put('/agency-managers/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, phone, governorate, address, agency, password } = req.body;
     
+    // Handle undefined or empty agency field
+    const agencyValue = agency && agency.trim() ? agency.trim() : null;
+    
     console.log('🔧 Updating agency manager:', {
       id,
       name,
       email,
-      agency,
+      agency: agencyValue,
       hasPassword: !!password,
       passwordLength: password?.length
     });
@@ -301,7 +304,7 @@ router.put('/agency-managers/:id', async (req, res) => {
       await client.query('BEGIN');
       
           // Agency is now optional - only validate if provided
-          if (agency && agency.trim() && !ALLOWED_AGENCIES.includes(agency)) {
+          if (agencyValue && !ALLOWED_AGENCIES.includes(agencyValue)) {
             await client.query('ROLLBACK');
             return res.status(400).json({
               success: false,
@@ -309,9 +312,9 @@ router.put('/agency-managers/:id', async (req, res) => {
             });
           }
 
-          // Only one chef per agency (except for current) - only if agency is provided
-          if (agency && agency.trim()) {
-            const existing = await client.query('SELECT id FROM agency_managers WHERE agency = $1 AND id != $2', [agency, id]);
+          // Only one chef per agency (except for current) - only if agency is provided and not empty
+          if (agencyValue) {
+            const existing = await client.query('SELECT id FROM agency_managers WHERE agency = $1 AND id != $2', [agencyValue, id]);
             if (existing.rows.length > 0) {
               await client.query('ROLLBACK');
               return res.status(400).json({
@@ -326,7 +329,7 @@ router.put('/agency-managers/:id', async (req, res) => {
         UPDATE agency_managers 
         SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, agency = $6, updated_at = CURRENT_TIMESTAMP
       `;
-      let managerParams = [name, email, phone, governorate, address, agency];
+      let managerParams = [name, email, phone, governorate, address, agencyValue];
       
       // Add password update if provided
       if (password && password.trim()) {

@@ -167,11 +167,11 @@ router.post('/register', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Create user
-      const userResult = await client.query(
-        'INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-        [username, email, hashedPassword, first_name, last_name, phone, true, true]
-      );
+              // Create user with role
+        const userResult = await client.query(
+          'INSERT INTO users (username, email, password_hash, first_name, last_name, phone, role, is_active, email_verified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+          [username, email, hashedPassword, first_name, last_name, phone, role, true, true]
+        );
 
       const userId = userResult.rows[0].id;
 
