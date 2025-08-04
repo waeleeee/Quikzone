@@ -117,7 +117,7 @@ app.use('/api/delivery-missions', deliveryMissionsRoutes);
 app.use('/api/agencies', agenciesRoutes);
 app.use('/api/demands', demandsRoutes);
 app.use('/api/pickup-missions', pickupMissionsRoutes);
-app.use('/api/drivers', authenticateToken, driversRoutes);
+app.use('/api/drivers', driversRoutes);
 
 // 404 handler
 app.use('/api/*', (req, res) => {

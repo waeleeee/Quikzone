@@ -3,12 +3,24 @@ import { Html5Qrcode } from "html5-qrcode";
 
 const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
   const [scanning, setScanning] = useState(false);
-  const [scannedParcels, setScannedParcels] = useState([]);
   const [manualCode, setManualCode] = useState("");
   const [error, setError] = useState("");
   const [scanMessage, setScanMessage] = useState("");
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+
+  // Get saved scanned parcels from localStorage
+  const getSavedScannedParcels = () => {
+    const saved = localStorage.getItem(`scanned_parcels_mission_${mission?.id}`);
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const [scannedParcels, setScannedParcels] = useState(getSavedScannedParcels());
+
+  // Save scanned parcels to localStorage whenever they change
+  const saveScannedParcels = (parcels) => {
+    localStorage.setItem(`scanned_parcels_mission_${mission?.id}`, JSON.stringify(parcels));
+  };
 
   useEffect(() => {
     if (scanning) {
@@ -84,7 +96,9 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
       }
       
       // Add to scanned parcels
-      setScannedParcels(prev => [...prev, parcel.id]);
+      const newScannedParcels = [...scannedParcels, parcel.id];
+      setScannedParcels(newScannedParcels);
+      saveScannedParcels(newScannedParcels);
       setScanMessage(`✅ ${parcel.recipient_name || parcel.destination || 'Colis'} scanné avec succès`);
       
       // Call the parent handler
@@ -112,10 +126,14 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
   };
 
   const handleRemove = (parcelId) => {
-    setScannedParcels(prev => prev.filter(id => id !== parcelId));
+    const newScannedParcels = scannedParcels.filter(id => id !== parcelId);
+    setScannedParcels(newScannedParcels);
+    saveScannedParcels(newScannedParcels);
   };
 
   const handleComplete = () => {
+    // Clear saved scanned parcels when mission is completed
+    localStorage.removeItem(`scanned_parcels_mission_${mission?.id}`);
     if (onClose) {
       onClose(scannedParcels);
     }
@@ -154,12 +172,34 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Expéditeur</label>
-            <p className="text-sm text-gray-900">{mission?.shipper?.name || 'N/A'}</p>
+            <label className="block text-sm font-medium text-gray-700">
+              {mission?.shippers?.length > 1 ? 'Expéditeurs' : 'Expéditeur'}
+            </label>
+            {mission?.shippers?.length > 1 ? (
+              <div className="space-y-1">
+                {mission.shippers.map((shipper, index) => (
+                  <p key={index} className="text-sm text-gray-900">
+                    {shipper.name} - {shipper.address}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-900">{mission?.shipper_name || 'N/A'}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Adresse</label>
-            <p className="text-sm text-gray-900">{mission?.shipper?.address || 'N/A'}</p>
+            {mission?.shippers?.length > 1 ? (
+              <div className="space-y-1">
+                {mission.shippers.map((shipper, index) => (
+                  <p key={index} className="text-sm text-gray-900">
+                    {shipper.address}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-900">{mission?.shipper_address || 'N/A'}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Total Colis</label>
@@ -243,9 +283,22 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
         <div className="bg-blue-50 p-4 rounded-lg">
           <div className="flex justify-between items-center mb-2">
             <span className="font-semibold text-blue-800">Progression</span>
-            <span className="text-sm text-blue-600">
-              {scannedParcels.length} / {totalParcels}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-blue-600">
+                {scannedParcels.length} / {totalParcels}
+              </span>
+              {scannedParcels.length > 0 && (
+                <button
+                  onClick={() => {
+                    setScannedParcels([]);
+                    saveScannedParcels([]);
+                  }}
+                  className="text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded border border-red-300 hover:bg-red-50 transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
           <div className="w-full bg-blue-200 rounded-full h-3">
             <div 

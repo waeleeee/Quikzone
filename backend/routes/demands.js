@@ -6,7 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Get all demands (with filtering for different user roles)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status = '', expediteur_email = '' } = req.query;
+    const { page = 1, limit = 10, status = '', expediteur_email = '', exclude_in_missions = false } = req.query;
     const offset = (page - 1) * limit;
     
     let demandsSqlQuery = `
@@ -20,6 +20,17 @@ router.get('/', authenticateToken, async (req, res) => {
       LEFT JOIN demand_parcels dp ON d.id = dp.demand_id
       WHERE 1=1
     `;
+    
+    // Exclude demands that are already in missions if requested
+    if (exclude_in_missions === 'true') {
+      console.log('🔍 Filtering out demands that are already in missions...');
+      demandsSqlQuery += ` AND d.id NOT IN (
+        SELECT DISTINCT md.demand_id 
+        FROM mission_demands md 
+        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
+        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
+      )`;
+    }
     const queryParams = [];
     
     // Filter by status
@@ -67,6 +78,17 @@ router.get('/', authenticateToken, async (req, res) => {
       FROM demands d
       WHERE 1=1
     `;
+    
+    // Exclude demands that are already in missions if requested
+    if (exclude_in_missions === 'true') {
+      console.log('🔍 Filtering out demands that are already in missions (count query)...');
+      countSqlQuery += ` AND d.id NOT IN (
+        SELECT DISTINCT md.demand_id 
+        FROM mission_demands md 
+        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
+        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
+      )`;
+    }
     const countParams = [];
     
     if (status) {

@@ -12,7 +12,9 @@ const DataTable = ({
   showActions = true,
   onRowClick,
   customActionButtons,
-  onScan
+  onScan,
+  onChefAgenceScan,
+  currentUser
 }) => {
   // Ensure data is always an array and handle null/undefined items
   const safeData = Array.isArray(data) ? data : [];
@@ -84,6 +86,9 @@ const DataTable = ({
                         onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
                         onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
                         onScan={onScan ? (e) => { e.stopPropagation(); onScan(item); } : undefined}
+                        onChefAgenceScan={onChefAgenceScan ? (e) => { e.stopPropagation(); onChefAgenceScan(item); } : undefined}
+                        currentUser={currentUser}
+                        item={item}
                       />
                     )}
                   </td>

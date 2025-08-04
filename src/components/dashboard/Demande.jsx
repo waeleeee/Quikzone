@@ -21,7 +21,6 @@ const Demande = () => {
   const [selectedParcels, setSelectedParcels] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [selectedDemand, setSelectedDemand] = useState(null);
   const [demandDetails, setDemandDetails] = useState(null);
   const [notes, setNotes] = useState("");
@@ -33,13 +32,6 @@ const Demande = () => {
     total: 0,
     pages: 0
   });
-
-  // Scanning state
-  const [scannedParcels, setScannedParcels] = useState([]);
-  const [scanInput, setScanInput] = useState("");
-  const [scanningDemand, setScanningDemand] = useState(null);
-  const [missionCode, setMissionCode] = useState("");
-  const [isMissionCompleted, setIsMissionCompleted] = useState(false);
 
   // Check if we should open create modal from dashboard navigation
   useEffect(() => {
@@ -147,109 +139,7 @@ const Demande = () => {
     }
   };
 
-  // Handle start scanning
-  const handleStartScanning = async (demand) => {
-    try {
-      // Fetch full demand details with parcels
-      const fullDemandDetails = await demandsService.getDemand(demand.id);
-      setScanningDemand(fullDemandDetails);
-      setScannedParcels([]);
-      setScanInput("");
-      setMissionCode("");
-      setIsMissionCompleted(false);
-      setIsScanModalOpen(true);
-    } catch (error) {
-      console.error('Error fetching demand details for scanning:', error);
-      toast.error('Erreur lors du chargement des détails de la demande');
-    }
-  };
 
-  // Handle parcel scan
-  const handleParcelScan = async (trackingNumber) => {
-    if (!trackingNumber.trim()) return;
-
-    console.log('🔍 Scanning parcel with tracking number:', trackingNumber.trim());
-    console.log('🔍 Scanning demand:', scanningDemand);
-    console.log('🔍 Available parcels in demand:', scanningDemand.parcels);
-
-    try {
-      // Find the parcel in the demand
-      const parcel = scanningDemand.parcels?.find(p => 
-        p.tracking_number === trackingNumber.trim()
-      );
-
-      console.log('🔍 Found parcel:', parcel);
-
-      if (!parcel) {
-        console.log('❌ Parcel not found. Available tracking numbers:', 
-          scanningDemand.parcels?.map(p => p.tracking_number));
-        toast.error('Colis non trouvé dans cette demande');
-        return;
-      }
-
-      // Check if already scanned
-      if (scannedParcels.some(sp => sp.tracking_number === trackingNumber.trim())) {
-        toast.error('Ce colis a déjà été scanné');
-        return;
-      }
-
-      // Call backend to update parcel status
-      await demandsService.scanParcel(scanningDemand.id, trackingNumber.trim());
-
-      // Add to scanned parcels
-      const newScannedParcel = {
-        ...parcel,
-        scanned_at: new Date().toISOString(),
-        status: 'Au dépôt'
-      };
-
-      setScannedParcels(prev => [...prev, newScannedParcel]);
-      setScanInput("");
-      
-      toast.success(`Colis ${trackingNumber} scanné avec succès`);
-
-      // Check if all parcels are scanned
-      const allParcelsScanned = scanningDemand.parcels?.length === scannedParcels.length + 1;
-      
-      if (allParcelsScanned) {
-        // Generate mission code
-        const code = generateMissionCode();
-        setMissionCode(code);
-        toast.success('Tous les colis scannés! Code de mission généré.');
-      }
-
-    } catch (error) {
-      console.error('Error scanning parcel:', error);
-      toast.error('Erreur lors du scan du colis');
-    }
-  };
-
-  // Generate mission code
-  const generateMissionCode = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `M-${timestamp}-${random}`;
-  };
-
-  // Handle complete scanning
-  const handleCompleteScanning = async () => {
-    if (scannedParcels.length !== scanningDemand.parcels?.length) {
-      toast.error('Tous les colis doivent être scannés pour compléter');
-      return;
-    }
-
-    try {
-      // Update demand status to completed
-      await demandsService.updateDemandStatus(scanningDemand.id, 'Completed', 'Tous les colis reçus');
-      
-      setIsMissionCompleted(true);
-      toast.success(`Mission complétée! Code: ${missionCode}`);
-      fetchDemands();
-    } catch (error) {
-      console.error('Error completing scanning:', error);
-      toast.error('Erreur lors de la finalisation');
-    }
-  };
 
   // Handle delete demand
   const handleDeleteDemand = async (demand) => {
@@ -359,20 +249,7 @@ const Demande = () => {
         </svg>
       </button>
       
-      {/* Scan Button - Only for Admin, Chef d'agence, Membre d'agence */}
-      {['Admin', 'Administration', 'Chef d\'agence', 'Membre de l\'agence'].includes(currentUser?.role) && 
-       demand.status === 'Accepted' && (
-        <button
-          onClick={(e) => { e.stopPropagation(); handleStartScanning(demand); }}
-          className="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-50 transition-colors"
-          title="Scanner les colis"
-          type="button"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z" />
-          </svg>
-        </button>
-      )}
+
 
       {/* Delete Button - Only if not accepted */}
       {demand.status !== 'Accepted' && (
@@ -689,213 +566,6 @@ const Demande = () => {
               >
                 Fermer
               </button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Scanning Modal */}
-      <Modal isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} size="xl">
-        {scanningDemand && (
-          <div className="p-6">
-            <h2 className={`text-xl font-semibold mb-4 ${
-              isMissionCompleted ? 'text-green-700' : ''
-            }`}>
-              {isMissionCompleted ? '✅ ' : ''}Scanner les colis - Demande #{scanningDemand.id}
-              {isMissionCompleted && <span className="text-green-600 text-lg ml-2">(Terminée)</span>}
-            </h2>
-            
-            <div className="space-y-6">
-              {/* Scan input */}
-              {!isMissionCompleted && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Scanner le numéro de suivi du colis
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={scanInput}
-                      onChange={(e) => setScanInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleParcelScan(scanInput);
-                        }
-                      }}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Entrez le numéro de suivi..."
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleParcelScan(scanInput)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                    >
-                      Scanner
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Progress */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-700">Progression</span>
-                  <span className="text-sm text-gray-600">
-                    {scannedParcels.length} / {scanningDemand.parcels?.length || 0} colis scannés
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ 
-                      width: `${scanningDemand.parcels?.length ? (scannedParcels.length / scanningDemand.parcels.length) * 100 : 0}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Mission code */}
-              {missionCode && (
-                <div className={`p-6 rounded-lg border-2 ${
-                  isMissionCompleted 
-                    ? 'bg-green-50 border-green-400 shadow-lg' 
-                    : 'bg-green-50 border-green-200'
-                }`}>
-                  <h4 className={`font-bold mb-3 ${
-                    isMissionCompleted ? 'text-green-900 text-lg' : 'text-green-900'
-                  }`}>
-                    {isMissionCompleted ? '🎉 MISSION TERMINÉE!' : 'Code de mission généré!'}
-                  </h4>
-                  <div className={`font-mono text-center p-4 rounded-lg ${
-                    isMissionCompleted 
-                      ? 'text-3xl bg-green-100 text-green-800 border-2 border-green-300 shadow-inner' 
-                      : 'text-2xl bg-green-100 text-green-800'
-                  }`}>
-                    {missionCode}
-                  </div>
-                  <p className={`text-center mt-3 ${
-                    isMissionCompleted ? 'text-green-800 font-medium' : 'text-green-700'
-                  }`}>
-                    {isMissionCompleted 
-                      ? '✅ Remettez ce code au livreur pour fermer la mission'
-                      : 'Remettez ce code au livreur pour finaliser la mission'
-                    }
-                  </p>
-                </div>
-              )}
-
-              {/* Scanned parcels list */}
-              <div>
-                <h3 className="font-medium text-gray-900 mb-2">
-                  Colis scannés ({scannedParcels.length})
-                </h3>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
-                  {scannedParcels.length === 0 ? (
-                    <p className="p-4 text-gray-500 text-center">Aucun colis scanné</p>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {scannedParcels.map((parcel, index) => (
-                        <div key={index} className="p-3 flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{parcel.tracking_number}</p>
-                            <p className="text-sm text-gray-600">{parcel.destination}</p>
-                          </div>
-                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                            ✓ Scanné
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Debug info - remove this after testing */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                  <h4 className="font-medium text-yellow-900 mb-2">Debug Info:</h4>
-                  <p className="text-sm text-yellow-800">
-                    Available tracking numbers: {scanningDemand.parcels?.map(p => p.tracking_number).join(', ') || 'None'}
-                  </p>
-                </div>
-              )}
-
-              {/* Expected parcels list */}
-              <div>
-                <h3 className="font-medium text-gray-900 mb-2">
-                  Colis attendus ({scanningDemand.parcels?.length || 0})
-                </h3>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          N° Suivi
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Destination
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                          Statut
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {scanningDemand.parcels?.map((parcel) => {
-                        const isScanned = scannedParcels.some(sp => sp.tracking_number === parcel.tracking_number);
-                        return (
-                          <tr key={parcel.id} className={isScanned ? 'bg-green-50' : ''}>
-                            <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                              {parcel.tracking_number}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-600">
-                              {parcel.destination}
-                            </td>
-                            <td className="px-4 py-2 text-sm">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                isScanned ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {isScanned ? '✓ Scanné' : 'En attente'}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal actions */}
-            <div className="flex justify-end space-x-3 mt-6">
-              {isMissionCompleted ? (
-                <button
-                  onClick={() => {
-                    setIsScanModalOpen(false);
-                    setIsMissionCompleted(false);
-                  }}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
-                >
-                  Fermer
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setIsScanModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleCompleteScanning}
-                    disabled={scannedParcels.length !== scanningDemand.parcels?.length}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Finaliser la mission
-                  </button>
-                </>
-              )}
             </div>
           </div>
         )}

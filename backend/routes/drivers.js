@@ -5,23 +5,63 @@ const router = express.Router();
 
 // Helper function to get driver ID from user email
 const getDriverId = async (userEmail) => {
-  const driverResult = await db.query(`
+  console.log('🔍 getDriverId called with email:', userEmail);
+  
+  // First try to find the driver by email
+  let driverResult = await db.query(`
     SELECT id FROM drivers WHERE email = $1
   `, [userEmail]);
   
+  console.log('📋 Driver search result:', driverResult.rows.length, 'drivers found');
+  
   if (driverResult.rows.length === 0) {
-    throw new Error('Driver not found');
+    console.log('⚠️ Driver not found, looking for user...');
+    
+    // If not found in drivers table, try to find the user and create a driver record
+    const userResult = await db.query(`
+      SELECT id, email, first_name, last_name FROM users WHERE email = $1
+    `, [userEmail]);
+    
+    console.log('👤 User search result:', userResult.rows.length, 'users found');
+    
+    if (userResult.rows.length === 0) {
+      console.log('❌ User not found in users table');
+      throw new Error('User not found');
+    }
+    
+    const user = userResult.rows[0];
+    console.log('✅ User found:', user);
+    
+    // Create a driver record for this user
+    console.log('🚀 Creating new driver record...');
+    const createDriverResult = await db.query(`
+      INSERT INTO drivers (email, name, phone, created_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      RETURNING id
+    `, [user.email, `${user.first_name} ${user.last_name}`, null]);
+    
+    console.log('✅ Driver record created:', createDriverResult.rows[0]);
+    driverResult = createDriverResult;
+  } else {
+    console.log('✅ Existing driver found:', driverResult.rows[0]);
   }
   
-  return driverResult.rows[0].id;
+  const driverId = driverResult.rows[0].id;
+  console.log('🎯 Returning driver ID:', driverId);
+  return driverId;
 };
 
 // Get driver pickup missions
 router.get('/pickup-missions', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 Driver pickup missions request from:', req.user.email);
+    console.log('👤 User object:', req.user);
+    
     const driverId = await getDriverId(req.user.email);
+    console.log('✅ Driver ID found:', driverId);
     
     // Get pickup missions assigned to this driver
+    console.log('🔍 Querying pickup missions for driver ID:', driverId);
     const result = await db.query(`
       SELECT 
         pm.id,
@@ -41,8 +81,10 @@ router.get('/pickup-missions', authenticateToken, async (req, res) => {
       GROUP BY pm.id, pm.mission_number, pm.status, pm.created_at, pm.updated_at, pm.security_code, s.name, s.address, s.phone
       ORDER BY pm.created_at DESC
     `, [driverId]);
+    
+    console.log('📦 Pickup missions query result:', result.rows.length, 'missions found');
 
-    // Get parcels for each mission
+    // Get parcels for each mission with shipper information
     const missionsWithParcels = await Promise.all(
       result.rows.map(async (mission) => {
         const parcelsResult = await db.query(`
@@ -52,31 +94,64 @@ router.get('/pickup-missions', authenticateToken, async (req, res) => {
             p.recipient_name,
             p.destination,
             p.status,
-            p.client_code
+            p.client_code,
+            s.name as shipper_name,
+            s.address as shipper_address,
+            s.phone as shipper_phone
           FROM parcels p
           INNER JOIN mission_parcels mp ON p.id = mp.parcel_id
+          LEFT JOIN shippers s ON p.shipper_id = s.id
           WHERE mp.mission_id = $1
         `, [mission.id]);
 
+        // Get unique shippers for this mission
+        const uniqueShippers = parcelsResult.rows.reduce((shippers, parcel) => {
+          const shipperKey = `${parcel.shipper_name}-${parcel.shipper_address}`;
+          if (!shippers.find(s => `${s.name}-${s.address}` === shipperKey)) {
+            shippers.push({
+              name: parcel.shipper_name,
+              address: parcel.shipper_address,
+              phone: parcel.shipper_phone
+            });
+          }
+          return shippers;
+        }, []);
+
         return {
           ...mission,
-          parcels: parcelsResult.rows
+          parcels: parcelsResult.rows,
+          shippers: uniqueShippers // Add all shippers for this mission
         };
       })
     );
 
+    console.log('📦 Returning missions:', missionsWithParcels.length);
     res.json({
       success: true,
       missions: missionsWithParcels
     });
   } catch (error) {
-    console.error('Get driver pickup missions error:', error);
+    console.error('❌ Get driver pickup missions error:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error message:', error.message);
+    
     if (error.message === 'Driver not found') {
+      console.log('🚫 Returning 404 - Driver not found');
       return res.status(404).json({
         success: false,
         message: 'Driver not found'
       });
     }
+    
+    if (error.message === 'User not found') {
+      console.log('🚫 Returning 404 - User not found');
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    console.log('🚫 Returning 500 - Internal server error');
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pickup missions'

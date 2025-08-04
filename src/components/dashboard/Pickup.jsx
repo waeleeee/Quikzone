@@ -3,6 +3,8 @@ import MissionPickupTable from "./common/MissionPickupTable";
 import Modal from "./common/Modal";
 import html2pdf from "html2pdf.js";
 import MissionColisScan from "./MissionColisScan";
+import ChefAgenceMissionScan from "./ChefAgenceMissionScan";
+
 import { missionsPickupService } from '../../services/api';
 import { apiService } from '../../services/api';
 
@@ -53,6 +55,10 @@ const Pickup = () => {
   const [scannedParcels, setScannedParcels] = useState([]);
   const [scanInput, setScanInput] = useState("");
   const [scanningMission, setScanningMission] = useState(null);
+  
+  // Chef d'agence scanning state
+  const [isChefAgenceScanModalOpen, setIsChefAgenceScanModalOpen] = useState(false);
+  const [chefAgenceScanningMission, setChefAgenceScanningMission] = useState(null);
 
   // Step-by-step wizard state for new logic
   const [currentStep, setCurrentStep] = useState(1);
@@ -77,8 +83,10 @@ const Pickup = () => {
         const [missionsData, driversData, acceptedDemandsData] = await Promise.all([
           missionsPickupService.getMissionsPickup(),
           apiService.getDrivers(),
-          apiService.getAcceptedMissions(), // This gets demands with "Accepted" status
+          apiService.getAcceptedMissions(true), // This gets demands with "Accepted" status, excluding those already in missions
         ]);
+        
+        console.log('🔍 Accepted demands (filtered to exclude those already in missions):', acceptedDemandsData);
         
         console.log('Missions data:', missionsData);
         console.log('Drivers data:', driversData);
@@ -453,6 +461,43 @@ const Pickup = () => {
     }
   };
 
+  // Chef d'agence scan parcel
+  const handleChefAgenceScan = async (missionId, parcelId, barcode) => {
+    try {
+      console.log('🔍 Chef agence scanning parcel:', parcelId, 'barcode:', barcode);
+      await apiService.chefAgenceScanParcel(missionId, parcelId);
+      console.log('✅ Parcel scanned successfully by chef agence');
+    } catch (error) {
+      console.error('❌ Error in chef agence scan:', error);
+      throw error; // Re-throw to let the component handle it
+    }
+  };
+
+  // Chef d'agence generate completion code
+  const handleChefAgenceGenerateCode = async (scannedParcels) => {
+    try {
+      console.log('🔍 Generating completion code for mission:', chefAgenceScanningMission.id);
+      const response = await apiService.generateCompletionCode(chefAgenceScanningMission.id, scannedParcels);
+      
+      if (response.success) {
+        alert(`Code de finalisation généré: ${response.completion_code}`);
+        setIsChefAgenceScanModalOpen(false);
+        fetchAll(); // Refresh data
+      } else {
+        alert('Erreur lors de la génération du code');
+      }
+    } catch (error) {
+      console.error('❌ Error generating completion code:', error);
+      alert('Erreur lors de la génération du code de finalisation');
+    }
+  };
+
+  // Start Chef d'agence scanning
+  const handleStartChefAgenceScanning = (mission) => {
+    setChefAgenceScanningMission(mission);
+    setIsChefAgenceScanModalOpen(true);
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Chargement des missions...</div>;
   }
@@ -483,9 +528,11 @@ const Pickup = () => {
         onEdit={() => {}} // Disabled for now
         onDelete={handleDelete}
         onScan={handleStartPickupScanning}
+        onChefAgenceScan={handleStartChefAgenceScanning}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         securityCodes={securityCodes}
+        currentUser={currentUser}
       />
 
       {/* Modal création mission - Step by Step Wizard */}
@@ -1179,6 +1226,23 @@ const Pickup = () => {
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Chef d'agence Scan Modal */}
+      <Modal
+        isOpen={isChefAgenceScanModalOpen}
+        onClose={() => setIsChefAgenceScanModalOpen(false)}
+        title={`Réception des Colis - Mission #${chefAgenceScanningMission?.mission_number || chefAgenceScanningMission?.id}`}
+        size="xl"
+      >
+        {chefAgenceScanningMission && (
+          <ChefAgenceMissionScan
+            mission={chefAgenceScanningMission}
+            onScan={handleChefAgenceScan}
+            onClose={() => setIsChefAgenceScanModalOpen(false)}
+            onGenerateCode={handleChefAgenceGenerateCode}
+          />
         )}
       </Modal>
     </div>

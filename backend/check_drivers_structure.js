@@ -1,38 +1,51 @@
 const db = require('./config/database');
 
-async function checkDriversStructure() {
+async function checkDriversTable() {
   try {
     console.log('🔍 Checking drivers table structure...');
     
-    // Check table columns
-    const columnsResult = await db.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'drivers' 
-      ORDER BY ordinal_position
+    // Check if drivers table exists
+    const tableExists = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'drivers'
+      );
     `);
     
-    console.log('📋 Drivers table columns:');
-    columnsResult.rows.forEach(row => {
-      console.log(`  - ${row.column_name}: ${row.data_type}`);
-    });
+    console.log('Drivers table exists:', tableExists.rows[0].exists);
     
-    // Check if there are any drivers
-    const driversResult = await db.query('SELECT COUNT(*) as count FROM drivers');
-    console.log(`\n🚗 Total drivers: ${driversResult.rows[0].count}`);
-    
-    // Show sample driver data
-    const sampleResult = await db.query('SELECT * FROM drivers LIMIT 1');
-    if (sampleResult.rows.length > 0) {
-      console.log('\n📦 Sample driver data:');
-      console.log(sampleResult.rows[0]);
+    if (tableExists.rows[0].exists) {
+      // Get table structure
+      const structure = await db.query(`
+        SELECT column_name, data_type, is_nullable, column_default
+        FROM information_schema.columns 
+        WHERE table_name = 'drivers'
+        ORDER BY ordinal_position;
+      `);
+      
+      console.log('📋 Drivers table structure:');
+      structure.rows.forEach(col => {
+        console.log(`  - ${col.column_name}: ${col.data_type} ${col.is_nullable === 'YES' ? '(nullable)' : '(not null)'}`);
+      });
+      
+      // Check if there are any drivers
+      const driverCount = await db.query('SELECT COUNT(*) as count FROM drivers');
+      console.log(`📊 Total drivers in table: ${driverCount.rows[0].count}`);
+      
+      // Show sample drivers
+      const sampleDrivers = await db.query('SELECT id, email, name, status FROM drivers LIMIT 5');
+      console.log('👥 Sample drivers:');
+      sampleDrivers.rows.forEach(driver => {
+        console.log(`  - ID: ${driver.id}, Email: ${driver.email}, Name: ${driver.name}, Status: ${driver.status || 'N/A'}`);
+      });
     }
     
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error checking drivers table:', error);
   } finally {
     process.exit(0);
   }
 }
 
-checkDriversStructure(); 
+checkDriversTable(); 

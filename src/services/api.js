@@ -274,22 +274,49 @@ const api = axios.create({
 // Request interceptor for authentication
 api.interceptors.request.use(
   (config) => {
+    console.log('📡 API Request interceptor - URL:', config.url);
+    console.log('📡 API Request interceptor - Method:', config.method);
+    
     const token = localStorage.getItem('authToken');
+    console.log('📡 Auth token for request:', token ? 'Token exists' : 'No token');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('📡 Authorization header set');
+    } else {
+      console.log('⚠️ No auth token found for request');
     }
+    
+    console.log('📡 Request headers:', config.headers);
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('❌ Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    console.log('✅ API Response interceptor - Success:', response.status, response.config.url);
+    console.log('✅ Response data:', response.data);
+    return response.data;
+  },
   (error) => {
+    console.log('❌ API Response interceptor - Error:', error.response?.status, error.config?.url);
+    console.log('❌ Error details:', error.response?.data);
+    console.log('❌ Error message:', error.message);
+    console.log('❌ Full error object:', error);
+    
     if (error.response?.status === 401) {
+      console.log('🔐 401 Unauthorized - Logging out user');
+      console.log('🔐 Current auth token:', localStorage.getItem('authToken'));
+      console.log('🔐 Current user:', localStorage.getItem('currentUser'));
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
+      console.log('🔐 After removal - auth token:', localStorage.getItem('authToken'));
+      console.log('🔐 After removal - user:', localStorage.getItem('currentUser'));
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -1719,10 +1746,16 @@ export const apiService = {
     }
   },
 
-  getAcceptedMissions: async () => {
+  getAcceptedMissions: async (excludeInMissions = false) => {
     try {
       console.log('🔍 Calling accepted missions API...');
-      const response = await api.get('/demands?status=Accepted');
+      console.log('🔍 Exclude in missions:', excludeInMissions);
+      const params = new URLSearchParams({ status: 'Accepted' });
+      if (excludeInMissions) {
+        params.append('exclude_in_missions', 'true');
+        console.log('🔍 Added exclude_in_missions parameter');
+      }
+      const response = await api.get(`/demands?${params.toString()}`);
       console.log('📡 Accepted missions API response:', response);
       console.log('📡 Response structure:', {
         hasDemands: !!response.demands,
@@ -1744,6 +1777,32 @@ export const apiService = {
       return response.data || response;
     } catch (error) {
       console.error('❌ getParcelsByDemand error:', error);
+      throw error;
+    }
+  },
+
+  // Chef d'agence scan parcel at entrepôt
+  chefAgenceScanParcel: async (missionId, parcelId) => {
+    try {
+      console.log('🔍 Chef agence scanning parcel:', parcelId, 'for mission:', missionId);
+      const response = await api.post(`/missions-pickup/${missionId}/chef-agence-scan`, { parcelId });
+      console.log('📡 Chef agence scan response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ chefAgenceScanParcel error:', error);
+      throw error;
+    }
+  },
+
+  // Chef d'agence generate completion code
+  generateCompletionCode: async (missionId, scannedParcels) => {
+    try {
+      console.log('🔍 Generating completion code for mission:', missionId);
+      const response = await api.post(`/missions-pickup/${missionId}/generate-completion-code`, { scannedParcels });
+      console.log('📡 Generate completion code response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ generateCompletionCode error:', error);
       throw error;
     }
   }
@@ -1925,10 +1984,18 @@ export const driverService = {
 
   getDriverPickupMissions: async () => {
     try {
+      console.log('🚀 getDriverPickupMissions called');
+      console.log('📡 Making API call to /drivers/pickup-missions');
+      
       const response = await api.get('/drivers/pickup-missions');
+      console.log('✅ getDriverPickupMissions response:', response);
+      
       return response.data || response;
     } catch (error) {
-      console.error('Get driver pickup missions error:', error);
+      console.error('❌ Get driver pickup missions error:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error data:', error.response?.data);
       throw error;
     }
   },

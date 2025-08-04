@@ -74,6 +74,43 @@ async function getFullMission(row) {
     
     console.log('📦 Final parcels array:', parcels);
     
+    // Get demands for this mission
+    const demandsRes = await pool.query(`
+      SELECT d.id, d.expediteur_name, d.expediteur_email, d.status, d.created_at
+      FROM demands d 
+      INNER JOIN mission_demands md ON d.id = md.demand_id 
+      WHERE md.mission_id = $1
+    `, [row.id]);
+    
+    console.log('📋 Demands query result:', demandsRes.rows);
+    
+    // Get parcels for each demand
+    const demandsWithParcels = await Promise.all(demandsRes.rows.map(async (demand) => {
+      const demandParcelsRes = await pool.query(`
+        SELECT p.id, p.tracking_number, p.destination, p.status, p.client_code
+        FROM parcels p 
+        INNER JOIN demand_parcels dp ON p.id = dp.parcel_id 
+        WHERE dp.demand_id = $1
+      `, [demand.id]);
+      
+      return {
+        id: demand.id,
+        expediteur_name: demand.expediteur_name,
+        expediteur_email: demand.expediteur_email,
+        status: demand.status,
+        created_at: demand.created_at,
+        parcels: demandParcelsRes.rows.map(p => ({
+          id: p.id,
+          tracking_number: p.tracking_number,
+          destination: p.destination,
+          status: getParcelStatusDisplay(p.status, row.status),
+          client_code: p.client_code
+        }))
+      };
+    }));
+    
+    console.log('📋 Final demands with parcels:', demandsWithParcels);
+    
     // No mapping needed since we're using French statuses directly
     const displayStatus = row.status || 'En attente';
     console.log(`📋 Mission status mapping: ${row.status} -> ${displayStatus}`);
@@ -92,6 +129,7 @@ async function getFullMission(row) {
       driver,
       shipper,
       parcels,
+      demands: demandsWithParcels,
       scheduled_time: row.scheduled_date,
       status: displayStatus,
       created_by: createdBy,
@@ -110,6 +148,7 @@ async function getFullMission(row) {
       driver: null,
       shipper: null,
       parcels: [],
+      demands: [],
       scheduled_time: row.scheduled_date,
       status: displayStatus,
       created_by: {
@@ -886,6 +925,188 @@ router.get('/available-livreurs', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching available livreurs:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Chef d'agence scan parcel at entrepôt
+router.post('/:id/chef-agence-scan', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { id } = req.params;
+    const { parcelId } = req.body;
+    
+    // Check if user has permission (Chef d'agence only)
+    if (req.user.role !== 'Chef d\'agence') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Check if mission exists and is in correct status
+    const missionCheck = await client.query(`
+      SELECT id, status FROM pickup_missions 
+      WHERE id = $1
+    `, [id]);
+    
+    if (missionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Mission not found'
+      });
+    }
+    
+    if (missionCheck.rows[0].status !== 'Enlevé') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Mission cannot be scanned in current status'
+      });
+    }
+    
+    // Check if parcel belongs to this mission
+    const parcelCheck = await client.query(`
+      SELECT p.id, p.tracking_number, p.status
+      FROM parcels p
+      INNER JOIN mission_parcels mp ON p.id = mp.parcel_id
+      WHERE mp.mission_id = $1 AND p.id = $2
+    `, [id, parcelId]);
+    
+    if (parcelCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Parcel not found in this mission'
+      });
+    }
+    
+    // Update parcel status to "Au dépôt"
+    await client.query(`
+      UPDATE parcels 
+      SET status = 'Au dépôt', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [parcelId]);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: 'Parcel scanned successfully at entrepôt',
+      parcel: {
+        id: parcelCheck.rows[0].id,
+        tracking_number: parcelCheck.rows[0].tracking_number,
+        status: 'Au dépôt'
+      }
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Chef agence scan error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to scan parcel'
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Chef d'agence generate completion code
+router.post('/:id/generate-completion-code', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { id } = req.params;
+    const { scannedParcels } = req.body;
+    
+    // Check if user has permission (Chef d'agence only)
+    if (req.user.role !== 'Chef d\'agence') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Check if mission exists and is in correct status
+    const missionCheck = await client.query(`
+      SELECT id, status, security_code FROM pickup_missions 
+      WHERE id = $1
+    `, [id]);
+    
+    if (missionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        message: 'Mission not found'
+      });
+    }
+    
+    if (missionCheck.rows[0].status !== 'Enlevé') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Mission cannot generate code in current status'
+      });
+    }
+    
+    // Check if all parcels are scanned
+    const totalParcels = await client.query(`
+      SELECT COUNT(*) as total
+      FROM parcels p
+      INNER JOIN mission_parcels mp ON p.id = mp.parcel_id
+      WHERE mp.mission_id = $1
+    `, [id]);
+    
+    if (scannedParcels.length !== totalParcels.rows[0].total) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'All parcels must be scanned before generating completion code'
+      });
+    }
+    
+    // Generate new completion code
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let completionCode = '';
+    for (let i = 0; i < 6; i++) {
+      completionCode += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    // Update mission with completion code
+    await client.query(`
+      UPDATE pickup_missions 
+      SET completion_code = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [completionCode, id]);
+    
+    // Update all demands in this mission to "Completed" status
+    await client.query(`
+      UPDATE demands 
+      SET status = 'Completed', updated_at = CURRENT_TIMESTAMP
+      WHERE id IN (
+        SELECT demand_id 
+        FROM mission_demands 
+        WHERE mission_id = $1
+      )
+    `, [id]);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: 'Completion code generated successfully',
+      completion_code: completionCode
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Generate completion code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate completion code'
+    });
+  } finally {
+    client.release();
   }
 });
 

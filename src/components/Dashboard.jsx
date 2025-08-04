@@ -134,9 +134,7 @@ const Dashboard = ({ selectedKey = "dashboard" }) => {
     if (selectedKey === "demande" && checkAccess("demands")) {
       return <Demande />;
     }
-    if (selectedKey === "pickup_missions" && checkAccess("pickup_missions")) {
-      return <PickupMissions />;
-    }
+    // pickup_missions is handled above for livreurs
 
     // Default fallback - show dashboard home
     return <DashboardHome />;

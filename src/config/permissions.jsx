@@ -177,7 +177,8 @@ export const ROLE_PERMISSIONS = {
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: false, // No access
-    reclamation: false // Limited access to view complaints
+    reclamation: false, // Limited access to view complaints
+    pickup_missions: true // Can access pickup missions page
   },
 
   // EXPÉDITEUR (CLIENT) - Client access for tracking parcels

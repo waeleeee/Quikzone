@@ -38,15 +38,24 @@ const LivreurPickupMissions = () => {
   });
 
   useEffect(() => {
+    console.log('🚀 LivreurPickupMissions component mounted');
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    console.log('👤 Current user from localStorage:', user);
     setCurrentUser(user);
+    
+    const token = localStorage.getItem('authToken');
+    console.log('🔐 Auth token exists:', !!token);
+    
     fetchPickupMissions();
   }, []);
 
   const fetchPickupMissions = async () => {
     try {
+      console.log('🚀 fetchPickupMissions called');
       setLoading(true);
+      console.log('📡 Calling driverService.getDriverPickupMissions()');
       const response = await driverService.getDriverPickupMissions();
+      console.log('📦 API Response:', response);
       setMissions(response.missions || []);
       
       // Calculate stats
@@ -62,7 +71,21 @@ const LivreurPickupMissions = () => {
         completedMissions: completed
       });
     } catch (error) {
-      console.error('Error fetching pickup missions:', error);
+      console.error('❌ Error fetching pickup missions:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error data:', error.response?.data);
+      
+      // Don't show alert for 401 errors as they're handled by the interceptor
+      if (error.response?.status === 401) {
+        console.log('🔐 Authentication error - will be handled by interceptor');
+      } else if (error.response?.status === 404) {
+        console.log('🔍 Driver not found - this might be a setup issue');
+        // Don't show alert for 404 as it might be a setup issue
+      } else {
+        console.log('⚠️ Showing error alert to user');
+        alert('Erreur lors du chargement des missions de collecte');
+      }
     } finally {
       setLoading(false);
     }
@@ -79,7 +102,10 @@ const LivreurPickupMissions = () => {
       fetchPickupMissions(); // Refresh data
       alert('Mission acceptée avec succès!');
     } catch (error) {
-      alert('Erreur lors de l\'acceptation de la mission');
+      console.error('Accept mission error:', error);
+      if (error.response?.status !== 401) {
+        alert('Erreur lors de l\'acceptation de la mission');
+      }
     }
   };
 
@@ -89,9 +115,12 @@ const LivreurPickupMissions = () => {
         await driverService.refusePickupMission(missionId);
         fetchPickupMissions(); // Refresh data
         alert('Mission refusée');
-      } catch (error) {
+          } catch (error) {
+      console.error('Refuse mission error:', error);
+      if (error.response?.status !== 401) {
         alert('Erreur lors du refus de la mission');
       }
+    }
     }
   };
 
@@ -104,10 +133,17 @@ const LivreurPickupMissions = () => {
     try {
       await driverService.completePickupScan(selectedMission.id, scannedParcels);
       setIsScanModalOpen(false);
+      
+      // Clear saved scan state for this mission since it's completed
+      localStorage.removeItem(`scanned_parcels_mission_${selectedMission.id}`);
+      
       fetchPickupMissions(); // Refresh data
       alert('Scan terminé avec succès!');
     } catch (error) {
-      alert('Erreur lors de la finalisation du scan');
+      console.error('Scan complete error:', error);
+      if (error.response?.status !== 401) {
+        alert('Erreur lors de la finalisation du scan');
+      }
     }
   };
 
@@ -124,7 +160,10 @@ const LivreurPickupMissions = () => {
       fetchPickupMissions(); // Refresh data
       alert('Mission terminée avec succès!');
     } catch (error) {
-      alert('Code incorrect ou erreur lors de la finalisation');
+      console.error('Complete mission error:', error);
+      if (error.response?.status !== 401) {
+        alert('Code incorrect ou erreur lors de la finalisation');
+      }
     }
   };
 
