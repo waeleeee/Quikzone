@@ -1898,16 +1898,81 @@ export const pickupMissionsService = {
       console.error('❌ Available Livreurs API error:', error);
       throw error;
     }
+  }
+};
+
+// Driver API functions
+export const driverService = {
+  getDriverStats: async () => {
+    try {
+      const response = await api.get('/drivers/stats');
+      return response.data || response;
+    } catch (error) {
+      console.error('Get driver stats error:', error);
+      throw error;
+    }
   },
 
-  getAcceptedDemands: async () => {
+  getDriverMissions: async () => {
     try {
-      console.log('🔍 Calling accepted demands API');
-      const response = await api.get('/pickup-missions/accepted-demands');
-      console.log('📡 Accepted Demands API response:', response);
-      return response;
+      const response = await api.get('/drivers/missions');
+      return response.data || response;
     } catch (error) {
-      console.error('❌ Accepted Demands API error:', error);
+      console.error('Get driver missions error:', error);
+      throw error;
+    }
+  },
+
+  getDriverPickupMissions: async () => {
+    try {
+      const response = await api.get('/drivers/pickup-missions');
+      return response.data || response;
+    } catch (error) {
+      console.error('Get driver pickup missions error:', error);
+      throw error;
+    }
+  },
+
+  acceptPickupMission: async (missionId) => {
+    try {
+      const response = await api.post(`/drivers/pickup-missions/${missionId}/accept`);
+      return response.data || response;
+    } catch (error) {
+      console.error('Accept pickup mission error:', error);
+      throw error;
+    }
+  },
+
+  refusePickupMission: async (missionId) => {
+    try {
+      const response = await api.post(`/drivers/pickup-missions/${missionId}/refuse`);
+      return response.data || response;
+    } catch (error) {
+      console.error('Refuse pickup mission error:', error);
+      throw error;
+    }
+  },
+
+  completePickupScan: async (missionId, scannedParcels) => {
+    try {
+      const response = await api.post(`/drivers/pickup-missions/${missionId}/scan-complete`, {
+        scannedParcels
+      });
+      return response.data || response;
+    } catch (error) {
+      console.error('Complete pickup scan error:', error);
+      throw error;
+    }
+  },
+
+  completePickupMission: async (missionId, missionCode) => {
+    try {
+      const response = await api.post(`/drivers/pickup-missions/${missionId}/complete`, {
+        missionCode
+      });
+      return response.data || response;
+    } catch (error) {
+      console.error('Complete pickup mission error:', error);
       throw error;
     }
   }
@@ -2007,67 +2072,6 @@ export const missionsPickupService = {
       return response.data;
     } catch (error) {
       console.error('❌ scanParcel error:', error);
-      throw error;
-    }
-  },
-
-  // New functions for driver pickup missions
-  getDriverPickupMissions: async (driverId) => {
-    try {
-      console.log('🔍 getDriverPickupMissions called with driverId:', driverId);
-      const response = await api.get(`/missions-pickup/driver/${driverId}`);
-      console.log('📡 getDriverPickupMissions response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('❌ getDriverPickupMissions error:', error);
-      throw error;
-    }
-  },
-
-  acceptPickupMission: async (missionId) => {
-    try {
-      console.log('✅ acceptPickupMission called with missionId:', missionId);
-      const response = await api.put(`/missions-pickup/${missionId}/accept`);
-      console.log('📡 acceptPickupMission response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('❌ acceptPickupMission error:', error);
-      throw error;
-    }
-  },
-
-  refusePickupMission: async (missionId) => {
-    try {
-      console.log('❌ refusePickupMission called with missionId:', missionId);
-      const response = await api.put(`/missions-pickup/${missionId}/refuse`);
-      console.log('📡 refusePickupMission response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('❌ refusePickupMission error:', error);
-      throw error;
-    }
-  },
-
-  updateMissionParcelsStatus: async (missionId, status) => {
-    try {
-      console.log('🔄 updateMissionParcelsStatus called with missionId:', missionId, 'status:', status);
-      const response = await api.put(`/missions-pickup/${missionId}/update-parcels-status`, { status });
-      console.log('📡 updateMissionParcelsStatus response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('❌ updateMissionParcelsStatus error:', error);
-      throw error;
-    }
-  },
-
-  updateParcelStatus: async (parcelId, status) => {
-    try {
-      console.log('🔄 updateParcelStatus called with parcelId:', parcelId, 'status:', status);
-      const response = await api.put(`/parcels/${parcelId}/status`, { status });
-      console.log('📡 updateParcelStatus response:', response);
-      return response.data;
-    } catch (error) {
-      console.error('❌ updateParcelStatus error:', error);
       throw error;
     }
   },

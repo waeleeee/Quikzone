@@ -2,6 +2,30 @@ import React from 'react';
 
 // Role-based Access Control Configuration
 export const ROLE_PERMISSIONS = {
+  // ADMIN - Full access to everything (alias for Administration)
+  'Admin': {
+    dashboard: true,
+    personnel: {
+      administration: true,
+      commercial: true,
+      finance: true,
+      chef_agence: true,
+      membre_agence: true,
+      livreurs: true
+    },
+    expediteur: true,
+    colis: true,
+    pickup: true,
+    pickup_client: true,
+    secteurs: true,
+    entrepots: true,
+    paiment_expediteur: true,
+    reclamation: true,
+    commercial_payments: true, // Add access to commercial payments management
+    demands: true, // Add access to demands management
+    pickup_missions: true // Add access to pickup missions management
+  },
+
   // ADMINISTRATION - Full access to everything
   'Administration': {
     dashboard: true,
@@ -150,7 +174,6 @@ export const ROLE_PERMISSIONS = {
     pickup: false, // No pickup menu - they see missions in their dashboard
     pickup_client: false, // No pickup client menu - they see delivery missions separately
     delivery_missions: true, // Can access delivery missions page
-    pickup_dashboard: true, // Can access pickup missions dashboard
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: false, // No access
@@ -176,6 +199,53 @@ export const ROLE_PERMISSIONS = {
     paiment_expediteur: true, // Can view their payment history
     reclamation: true, // Can create and track complaints
     demands: true // Can create and manage their own demands
+  },
+
+  // LIVREUR - Alias for Livreurs
+  'Livreur': {
+    dashboard: true,
+    personnel: {
+      administration: false,
+      commercial: false,
+      finance: false,
+      chef_agence: false,
+      membre_agence: false,
+      livreurs: false
+    },
+    expediteur: false,
+    colis: false,
+    pickup: false,
+    pickup_client: false,
+    delivery_missions: true, // Can access delivery missions page
+    pickup_missions: true, // Can access pickup missions page
+    secteurs: false,
+    entrepots: false,
+    paiment_expediteur: false,
+    reclamation: false
+  },
+
+  // UTILISATEUR - Basic access (fallback role)
+  'Utilisateur': {
+    dashboard: true,
+    personnel: {
+      administration: false,
+      commercial: false,
+      finance: false,
+      chef_agence: false,
+      membre_agence: false,
+      livreurs: false
+    },
+    expediteur: false,
+    colis: false,
+    pickup: false,
+    pickup_client: false,
+    secteurs: false,
+    entrepots: false,
+    paiment_expediteur: false,
+    reclamation: false,
+    commercial_payments: false,
+    demands: false,
+    pickup_missions: false
   }
 };
 
@@ -364,19 +434,6 @@ export const getFilteredMenu = (userRole) => {
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      )
-    });
-  }
-
-  // Add pickup missions dashboard for livreurs
-  if (permissions.pickup_dashboard) {
-    baseMenu.push({
-      label: "Mes Missions de Pickup",
-      key: "livreur_dashboard",
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       )
     });

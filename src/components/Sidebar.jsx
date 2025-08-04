@@ -28,11 +28,14 @@ const Sidebar = ({ onSelect, selectedKey }) => {
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
         </div>
+        <div className="text-center text-xs text-gray-500 mt-4">
+          {!currentUser ? 'No user found' : 'No menu items'}
+        </div>
       </aside>
     );
   }
 
-  return (
+      return (
     <aside className="sidebar" style={{ background: 'linear-gradient(180deg, #fff 0%, #f7f7f7 100%)', borderRight: '1px solid #ececec' }}>
       {/* Logo QuickZone */}
       <div className="mb-6 text-center">

@@ -248,7 +248,7 @@ const DashboardHome = () => {
       const drivers = await apiService.getDrivers();
       const driversInAgency = drivers.filter(driver => driver.agency === agencyManager.governorate);
       driversInAgency.forEach(driver => {
-        allUsers.push({ role: 'Livreurs', created_at: driver.created_at });
+        allUsers.push({ role: 'Livreur', created_at: driver.created_at });
       });
       
       // Fetch commercials

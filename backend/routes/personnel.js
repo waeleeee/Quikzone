@@ -2159,30 +2159,18 @@ router.post('/livreurs', async (req, res) => {
       const firstName = name.split(' ')[0] || name;
       const lastName = name.split(' ').slice(1).join(' ') || firstName;
       
-          // Create user account - password is required for livreurs
-    if (!hashedPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Le mot de passe est obligatoire pour créer un livreur'
-      });
-    }
-    
-    let userId = null;
-    const userResult = await client.query(`
-      INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-      VALUES ($1, $2, $3, $4, $5, true)
-      RETURNING id
-    `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
-    userId = userResult.rows[0].id;
-    
-    // Assign "Livreurs" role
-    const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Livreurs']);
-    if (roleResult.rows.length > 0) {
-      await client.query(`
-        INSERT INTO user_roles (user_id, role_id)
-        VALUES ($1, $2)
-      `, [userId, roleResult.rows[0].id]);
-    }
+      // Create user account if password is provided
+      let userId = null;
+      if (hashedPassword) {
+        const userResult = await client.query(`
+          INSERT INTO users (username, email, password_hash, first_name, last_name, role, agency, governorate, is_active)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+          RETURNING id
+        `, [uniqueUsername, email, hashedPassword, firstName, lastName, 'Livreur', agency, governorate]);
+        userId = userResult.rows[0].id;
+        
+        console.log('✅ User created with role "Livreur"');
+      }
       
       // Create driver
       const result = await client.query(`
@@ -2202,16 +2190,6 @@ router.post('/livreurs', async (req, res) => {
         cin_number, driving_license, car_number, car_type, insurance_number, agency,
         photo_url, personal_documents_url, car_documents_url, hashedPassword
       ]);
-
-      // Update user with agency information
-      if (agency) {
-        await client.query(`
-          UPDATE users 
-          SET agency = $1, governorate = $2
-          WHERE id = $3
-        `, [agency, governorate, userId]);
-        console.log('✅ User updated with agency:', agency);
-      }
 
       await client.query('COMMIT');
       
@@ -2338,9 +2316,11 @@ router.put('/livreurs/:id', async (req, res) => {
           // Update existing user
           await client.query(`
             UPDATE users 
-            SET password_hash = $1, first_name = $2, last_name = $3, is_active = true
-            WHERE email = $4
-          `, [hashedPassword, firstName, lastName, email]);
+            SET password_hash = $1, first_name = $2, last_name = $3, role = $4, agency = $5, governorate = $6, is_active = true
+            WHERE email = $7
+          `, [hashedPassword, firstName, lastName, 'Livreur', agency, governorate, email]);
+          
+          console.log('✅ Existing user updated with role "Livreur"');
         } else {
           // Create new user
           let username = email.split('@')[0];
@@ -2354,19 +2334,12 @@ router.put('/livreurs/:id', async (req, res) => {
           }
 
           const userResult = await client.query(`
-            INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-            VALUES ($1, $2, $3, $4, $5, true)
+            INSERT INTO users (username, email, password_hash, first_name, last_name, role, agency, governorate, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
             RETURNING id
-          `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
+          `, [uniqueUsername, email, hashedPassword, firstName, lastName, 'Livreur', agency, governorate]);
 
-          // Assign "Livreurs" role
-          const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Livreurs']);
-          if (roleResult.rows.length > 0) {
-            await client.query(`
-              INSERT INTO user_roles (user_id, role_id)
-              VALUES ($1, $2)
-            `, [userResult.rows[0].id, roleResult.rows[0].id]);
-          }
+          console.log('✅ User created with role "Livreur" during update');
         }
       }
 

@@ -6,7 +6,6 @@ import Login from './components/Login';
 import ExpediteurDetail from './components/dashboard/ExpediteurDetail';
 import BonLivraisonColis from './components/dashboard/BonLivraisonColis';
 import LivreurDeliveryMissions from './components/dashboard/LivreurDeliveryMissions';
-import LivreurDashboard from './components/dashboard/LivreurDashboard';
 import ExpediteurDashboardTest from './components/dashboard/ExpediteurDashboardTest';
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -84,9 +83,7 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Make login the default landing page */}
-      <Route path="/" element={<Login />} />
-      <Route path="/home" element={<HomePage />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <DashboardLayout />
@@ -105,11 +102,6 @@ function AppContent() {
       <Route path="/livreur-delivery-missions" element={
         <ProtectedRoute>
           <LivreurDeliveryMissions />
-        </ProtectedRoute>
-      } />
-      <Route path="/livreur-dashboard" element={
-        <ProtectedRoute>
-          <LivreurDashboard />
         </ProtectedRoute>
       } />
       <Route path="/login" element={<Login />} />

@@ -428,14 +428,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const demandsSqlQuery = `
       SELECT 
         d.*,
-        md.added_at as added_to_mission_at,
         COALESCE(COUNT(dp.parcel_id), 0) as parcel_count
       FROM demands d
       INNER JOIN mission_demands md ON d.id = md.demand_id
       LEFT JOIN demand_parcels dp ON d.id = dp.demand_id
       WHERE md.mission_id = $1
-      GROUP BY d.id, md.added_at
-      ORDER BY md.added_at ASC
+      GROUP BY d.id
+      ORDER BY d.id ASC
     `;
     
     const demandsResult = await pool.query(demandsSqlQuery, [id]);
@@ -454,7 +453,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       LEFT JOIN parcels p ON mp.parcel_id = p.id
       LEFT JOIN shippers s ON p.shipper_id = s.id
       WHERE mp.mission_id = $1
-      ORDER BY mp.added_at ASC
+      ORDER BY mp.mission_id ASC
     `;
     
     const parcelsResult = await pool.query(parcelsSqlQuery, [id]);
@@ -887,147 +886,6 @@ router.get('/available-livreurs', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching available livreurs:', error);
     res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get missions for a specific driver
-router.get('/driver/:driverId', authenticateToken, async (req, res) => {
-  try {
-    console.log('🔍 Getting missions for driver:', req.params.driverId);
-    
-    const missionsQuery = `
-      SELECT pm.*, 
-             d.name as driver_name, 
-             d.email as driver_email,
-             s.name as shipper_name,
-             s.email as shipper_email,
-             s.phone as shipper_phone,
-             s.company_address as shipper_address
-      FROM pickup_missions pm
-      LEFT JOIN drivers d ON pm.driver_id = d.id
-      LEFT JOIN shippers s ON pm.shipper_id = s.id
-      WHERE pm.driver_id = $1
-      ORDER BY pm.created_at DESC
-    `;
-    
-    const missionsResult = await pool.query(missionsQuery, [req.params.driverId]);
-    console.log('📦 Found missions:', missionsResult.rows.length);
-    
-    // Get parcels for each mission
-    const missionsWithParcels = await Promise.all(
-      missionsResult.rows.map(async (mission) => {
-        const parcelsQuery = `
-          SELECT p.id, p.tracking_number, p.destination, p.status, p.shipper_name
-          FROM parcels p 
-          INNER JOIN mission_parcels mp ON p.id = mp.parcel_id 
-          WHERE mp.mission_id = $1
-        `;
-        
-        const parcelsResult = await pool.query(parcelsQuery, [mission.id]);
-        
-        return {
-          ...mission,
-          parcels: parcelsResult.rows
-        };
-      })
-    );
-    
-    console.log('✅ Returning missions with parcels:', missionsWithParcels.length);
-    res.json(missionsWithParcels);
-    
-  } catch (error) {
-    console.error('❌ Error getting driver missions:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors de la récupération des missions' });
-  }
-});
-
-// Accept a pickup mission
-router.put('/:id/accept', authenticateToken, async (req, res) => {
-  try {
-    console.log('✅ Accepting mission:', req.params.id);
-    
-    // Update mission status to "Acceptée"
-    const updateQuery = `
-      UPDATE pickup_missions 
-      SET status = 'Acceptée', updated_at = NOW()
-      WHERE id = $1
-      RETURNING *
-    `;
-    
-    const result = await pool.query(updateQuery, [req.params.id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Mission non trouvée' });
-    }
-    
-    console.log('✅ Mission accepted successfully');
-    res.json({ success: true, message: 'Mission acceptée avec succès' });
-    
-  } catch (error) {
-    console.error('❌ Error accepting mission:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors de l\'acceptation de la mission' });
-  }
-});
-
-// Refuse a pickup mission
-router.put('/:id/refuse', authenticateToken, async (req, res) => {
-  try {
-    console.log('❌ Refusing mission:', req.params.id);
-    
-    // Update mission status to "Refusée"
-    const updateQuery = `
-      UPDATE pickup_missions 
-      SET status = 'Refusée', updated_at = NOW()
-      WHERE id = $1
-      RETURNING *
-    `;
-    
-    const result = await pool.query(updateQuery, [req.params.id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Mission non trouvée' });
-    }
-    
-    console.log('✅ Mission refused successfully');
-    res.json({ success: true, message: 'Mission refusée avec succès' });
-    
-  } catch (error) {
-    console.error('❌ Error refusing mission:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors du refus de la mission' });
-  }
-});
-
-// Update all parcels status in a mission
-router.put('/:id/update-parcels-status', authenticateToken, async (req, res) => {
-  try {
-    const { status } = req.body;
-    console.log('🔄 Updating parcels status for mission:', req.params.id, 'to:', status);
-    
-    // Get all parcels in this mission
-    const parcelsQuery = `
-      SELECT p.id 
-      FROM parcels p 
-      INNER JOIN mission_parcels mp ON p.id = mp.parcel_id 
-      WHERE mp.mission_id = $1
-    `;
-    
-    const parcelsResult = await pool.query(parcelsQuery, [req.params.id]);
-    console.log('📦 Found parcels to update:', parcelsResult.rows.length);
-    
-    // Update each parcel status
-    for (const parcel of parcelsResult.rows) {
-      await pool.query(
-        'UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2',
-        [status, parcel.id]
-      );
-    }
-    
-    console.log('✅ All parcels updated successfully');
-    res.json({ success: true, message: 'Statut des colis mis à jour avec succès' });
-    
-  } catch (error) {
-    console.error('❌ Error updating parcels status:', error);
-    res.status(500).json({ success: false, message: 'Erreur lors de la mise à jour du statut des colis' });
   }
 });
 

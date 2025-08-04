@@ -292,26 +292,21 @@ const Entrepots = () => {
 
   const fetchChefAgences = async () => {
     try {
-      console.log('🔍 Fetching available Chef d\'agence users...');
-      const { apiService } = await import('../../services/api');
-      const agencyManagersResponse = await apiService.getAgencyManagers();
+      console.log('🔍 Fetching Chef d\'agence users...');
+      const response = await fetch('http://localhost:5000/api/personnel/users?role=Chef d\'agence');
+      const data = await response.json();
       
-      // Filter only agency managers without an agency assigned
-      const availableChefAgences = agencyManagersResponse.filter(manager => 
-        !manager.agency || manager.agency.trim() === ''
-      );
-      
-      const chefAgencesList = availableChefAgences.map(manager => ({
-        id: manager.id,
-        name: manager.name,
-        email: manager.email
-      }));
-      
-      setChefAgences(chefAgencesList);
-      console.log('✅ Available Chef d\'agence users loaded:', chefAgencesList);
-      console.log('📊 Total available:', chefAgencesList.length);
+      if (data.success && data.data) {
+        const chefAgencesList = data.data.map(user => ({
+          id: user.id,
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email
+        }));
+        setChefAgences(chefAgencesList);
+        console.log('✅ Chef d\'agence users loaded:', chefAgencesList);
+      }
     } catch (error) {
-      console.error('❌ Error fetching available Chef d\'agence users:', error);
+      console.error('❌ Error fetching Chef d\'agence users:', error);
     }
   };
 
@@ -438,7 +433,7 @@ const Entrepots = () => {
           allUsers.push({
             id: driver.id,
             name: driver.name,
-            role: 'Livreurs',
+            role: 'Livreur',
             email: driver.email,
             phone: driver.phone,
             status: 'Actif',
@@ -700,19 +695,10 @@ const Entrepots = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [name]: value,
-      };
-      
-      // Auto-fill agency field with warehouse name when warehouse name changes
-      if (name === 'name' && value.trim()) {
-        newData.assignedAgency = value.trim();
-      }
-      
-      return newData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleStatusCardClick = async (status, count) => {
@@ -1231,21 +1217,12 @@ const Entrepots = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Sélectionnez un responsable</option>
-              {chefAgences.length > 0 ? (
-                chefAgences.map((chef) => (
-                  <option key={chef.id} value={chef.id}>
-                    {chef.name} ({chef.email})
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>Aucun chef d'agence disponible (tous ont une agence assignée)</option>
-              )}
+              {chefAgences.map((chef) => (
+                <option key={chef.id} value={chef.id}>
+                  {chef.name} ({chef.email})
+                </option>
+              ))}
             </select>
-            {chefAgences.length === 0 && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Créez d'abord un chef d'agence sans agence assignée
-              </p>
-            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1260,7 +1237,7 @@ const Entrepots = () => {
               placeholder="Entrez le nom de l'agence à assigner"
             />
             <p className="text-xs text-gray-500 mt-1">
-              💡 Cette agence sera automatiquement le nom de l'entrepôt et sera assignée au chef d'agence sélectionné
+              💡 Cette agence sera assignée au chef d'agence sélectionné
             </p>
           </div>
             <div>

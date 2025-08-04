@@ -125,122 +125,154 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
   const progressPercentage = totalParcels > 0 ? (scannedParcels.length / totalParcels) * 100 : 0;
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Scanner les colis - Mission #{mission?.mission_number || mission?.id}
-        </h2>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Mission Info */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="grid grid-cols-2 gap-4 text-sm">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
           <div>
-            <span className="font-semibold">Expéditeur:</span> {mission?.shipper?.name || 'N/A'}
+            <h1 className="text-2xl font-bold text-gray-900">
+              Scanner les colis - Mission #{mission?.mission_number || mission?.id}
+            </h1>
+            <p className="text-gray-600 mt-1">Scan des colis pour la mission de pickup</p>
           </div>
-          <div>
-            <span className="font-semibold">Adresse:</span> {mission?.shipper?.address || 'N/A'}
-          </div>
-          <div>
-            <span className="font-semibold">Colis:</span> {totalParcels}
-          </div>
-          <div>
-            <span className="font-semibold">Scannés:</span> {scannedParcels.length}
-          </div>
-        </div>
-      </div>
-
-      {/* Scanning Controls */}
-      <div className="flex space-x-2 mb-4">
-        <button
-          onClick={scanning ? stopScan : startScan}
-          className={`px-4 py-2 rounded-md font-semibold text-white ${
-            scanning ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {scanning ? "Arrêter le scan" : "Scanner avec caméra"}
-        </button>
-        <form onSubmit={handleManualAdd} className="flex space-x-2 flex-1">
-          <input
-            type="text"
-            placeholder="Entrez le code-barres manuellement..."
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
           <button
-            type="submit"
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            Ajouter
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
-        </form>
+        </div>
       </div>
 
-      {/* Error and Status Messages */}
-      {error && (
-        <div className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200">
-          {error}
+      {/* Mission Info Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <span className="text-2xl mr-2">📋</span>
+          Informations de la Mission
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Expéditeur</label>
+            <p className="text-sm text-gray-900">{mission?.shipper?.name || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Adresse</label>
+            <p className="text-sm text-gray-900">{mission?.shipper?.address || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Total Colis</label>
+            <p className="text-sm text-gray-900">{totalParcels}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Colis Scannés</label>
+            <p className="text-sm text-gray-900">{scannedParcels.length}</p>
+          </div>
         </div>
-      )}
-      
-      {scanMessage && (
-        <div className={`p-3 rounded-lg text-sm ${
-          scanMessage.includes('✅') ? 'bg-green-100 text-green-800 border border-green-200' :
-          scanMessage.includes('⚠️') ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-          'bg-red-100 text-red-800 border border-red-200'
-        }`}>
-          {scanMessage}
-        </div>
-      )}
-
-      {/* Camera Scanner */}
-      <div className="mb-4">
-        <div 
-          id="livreur-qr-reader" 
-          ref={scannerRef} 
-          className="mx-auto" 
-          style={{ width: 300, display: scanning ? 'block' : 'none' }} 
-        />
       </div>
 
-      {/* Progress Bar */}
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-semibold text-blue-800">Progression du scan</span>
-          <span className="text-sm text-blue-600">
-            {scannedParcels.length} / {totalParcels}
-          </span>
+      {/* Scanning Controls Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <span className="text-2xl mr-2">📱</span>
+          Contrôles de Scan
+        </h3>
+        
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <button
+            onClick={scanning ? stopScan : startScan}
+            className={`px-4 py-2 rounded-md font-semibold text-white transition-colors ${
+              scanning ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {scanning ? "Arrêter le scan" : "Scanner avec caméra"}
+          </button>
+          <form onSubmit={handleManualAdd} className="flex space-x-2 flex-1">
+            <input
+              type="text"
+              placeholder="Entrez le code-barres manuellement..."
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold transition-colors"
+            >
+              Ajouter
+            </button>
+          </form>
         </div>
-        <div className="w-full bg-blue-200 rounded-full h-3">
+
+        {/* Error and Status Messages */}
+        {error && (
+          <div className="text-red-600 text-sm p-3 bg-red-50 rounded-lg border border-red-200 mb-4">
+            {error}
+          </div>
+        )}
+        
+        {scanMessage && (
+          <div className={`p-3 rounded-lg text-sm mb-4 ${
+            scanMessage.includes('✅') ? 'bg-green-100 text-green-800 border border-green-200' :
+            scanMessage.includes('⚠️') ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+            'bg-red-100 text-red-800 border border-red-200'
+          }`}>
+            {scanMessage}
+          </div>
+        )}
+
+        {/* Camera Scanner */}
+        <div className="mb-4">
           <div 
-            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
-          ></div>
-        </div>
-        <div className="text-center mt-2 text-sm text-blue-600">
-          {progressPercentage.toFixed(0)}% terminé
+            id="livreur-qr-reader" 
+            ref={scannerRef} 
+            className="mx-auto" 
+            style={{ width: 300, display: scanning ? 'block' : 'none' }} 
+          />
         </div>
       </div>
 
-      {/* Parcels List */}
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Colis de la mission</h3>
+      {/* Progress Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <span className="text-2xl mr-2">📊</span>
+          Progression du Scan
+        </h3>
+        
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-semibold text-blue-800">Progression</span>
+            <span className="text-sm text-blue-600">
+              {scannedParcels.length} / {totalParcels}
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-3">
+            <div 
+              className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${progressPercentage}%` }}
+            ></div>
+          </div>
+          <div className="text-center mt-2 text-sm text-blue-600">
+            {progressPercentage.toFixed(0)}% terminé
+          </div>
+        </div>
+      </div>
+
+      {/* Parcels List Card */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <span className="text-2xl mr-2">📦</span>
+          Colis de la Mission ({mission?.parcels?.length || 0})
+        </h3>
+        
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {mission?.parcels?.map((parcel) => {
             const isScanned = scannedParcels.includes(parcel.id);
             return (
               <div 
                 key={parcel.id} 
-                className={`p-3 rounded-lg border ${
+                className={`p-3 rounded-lg border transition-colors ${
                   isScanned 
                     ? 'bg-green-50 border-green-200' 
                     : 'bg-gray-50 border-gray-200'
@@ -273,7 +305,7 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
                   {isScanned && (
                     <button
                       onClick={() => handleRemove(parcel.id)}
-                      className="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded"
+                      className="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded transition-colors"
                     >
                       Retirer
                     </button>
@@ -282,17 +314,19 @@ const LivreurBarcodeScan = ({ mission, onScan, onClose }) => {
               </div>
             );
           }) || (
-            <div className="text-gray-500 text-sm">Aucun colis associé à cette mission</div>
+            <div className="text-gray-500 text-sm text-center py-4">
+              Aucun colis associé à cette mission
+            </div>
           )}
         </div>
       </div>
 
       {/* Complete Button */}
       {scannedParcels.length === totalParcels && totalParcels > 0 && (
-        <div className="pt-4 border-t border-gray-200">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <button
             onClick={handleComplete}
-            className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-semibold text-lg"
+            className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg font-semibold text-lg transition-colors"
           >
             ✅ Terminer le scanning - Mission Enlevé
           </button>

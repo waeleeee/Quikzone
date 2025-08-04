@@ -18,6 +18,7 @@ import Pickup from "./dashboard/Pickup";
 import PickupDepot from "./dashboard/PickupDepot";
 import PickupClient from "./dashboard/PickupClient";
 import LivreurDeliveryMissions from "./dashboard/LivreurDeliveryMissions";
+import LivreurPickupMissions from "./dashboard/LivreurPickupMissions";
 import Secteurs from "./dashboard/Secteurs";
 import Entrepots from "./dashboard/Entrepots";
 import PaimentExpediteur from "./dashboard/PaimentExpediteur";
@@ -109,6 +110,9 @@ const Dashboard = ({ selectedKey = "dashboard" }) => {
     if (selectedKey === "delivery_missions" && checkAccess("delivery_missions")) {
       return <LivreurDeliveryMissions />;
     }
+    if (selectedKey === "pickup_missions" && checkAccess("pickup_missions")) {
+      return <LivreurPickupMissions />;
+    }
     if (selectedKey === "pickup_depot" && checkAccess("pickup")) {
       return <PickupDepot />;
     }
@@ -132,9 +136,6 @@ const Dashboard = ({ selectedKey = "dashboard" }) => {
     }
     if (selectedKey === "pickup_missions" && checkAccess("pickup_missions")) {
       return <PickupMissions />;
-    }
-    if (selectedKey === "livreur_dashboard" && checkAccess("pickup_dashboard")) {
-      return <LivreurDashboard />;
     }
 
     // Default fallback - show dashboard home
