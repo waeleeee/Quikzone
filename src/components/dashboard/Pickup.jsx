@@ -13,7 +13,8 @@ const pickupStatusList = [
   "En attente",      // Initial status when pickup is created
   "À enlever",       // When driver accepts the mission  
   "Enlevé",          // When driver scans parcel codes
-  "Au dépôt"         // When driver completes with security code
+  "Au dépôt",        // When driver completes with security code
+  "Terminé"          // When mission is completed with completion code
 ];
 
 const statusBadge = (status) => {
@@ -22,10 +23,12 @@ const statusBadge = (status) => {
     "À enlever": "bg-blue-100 text-blue-800 border-blue-300", 
     "Enlevé": "bg-green-100 text-green-800 border-green-300",
     "Au dépôt": "bg-purple-100 text-purple-800 border-purple-300",
+    "Terminé": "bg-emerald-100 text-emerald-800 border-emerald-300",
     "En cours": "bg-purple-100 text-purple-800 border-purple-300",
     "RTN dépot": "bg-orange-100 text-orange-800 border-orange-300",
     "Livrés": "bg-green-100 text-green-800 border-green-300",
     "Livrés payés": "bg-emerald-100 text-emerald-800 border-emerald-300",
+    "Terminé": "bg-emerald-100 text-emerald-800 border-emerald-300",
     "Retour définitif": "bg-red-100 text-red-800 border-red-300",
     "RTN client dépôt": "bg-pink-100 text-pink-800 border-pink-300",
     "Retour Expéditeur": "bg-gray-100 text-gray-800 border-gray-300",
@@ -120,8 +123,14 @@ const Pickup = () => {
         for (const mission of missions) {
           try {
             const codeResponse = await missionsPickupService.getMissionSecurityCode(mission.id);
-            if (codeResponse.success && codeResponse.data && codeResponse.data.securityCode) {
+            console.log('🔐 Security code response for mission', mission.id, ':', codeResponse);
+            
+            if (codeResponse.success && codeResponse.data && codeResponse.data.security_code) {
+              codes[mission.id] = codeResponse.data.security_code;
+            } else if (codeResponse.data && codeResponse.data.securityCode) {
               codes[mission.id] = codeResponse.data.securityCode;
+            } else if (codeResponse.security_code) {
+              codes[mission.id] = codeResponse.security_code;
             } else if (codeResponse.securityCode) {
               codes[mission.id] = codeResponse.securityCode;
             }
@@ -129,6 +138,7 @@ const Pickup = () => {
             console.error(`Error fetching security code for mission ${mission.id}:`, error);
           }
         }
+        console.log('🔐 Final security codes:', codes);
         setSecurityCodes(codes);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -477,7 +487,13 @@ const Pickup = () => {
   const handleChefAgenceGenerateCode = async (scannedParcels) => {
     try {
       console.log('🔍 Generating completion code for mission:', chefAgenceScanningMission.id);
-      const response = await apiService.generateCompletionCode(chefAgenceScanningMission.id, scannedParcels);
+      console.log('🔍 Scanned parcels:', scannedParcels);
+      
+      // Extract just the parcel IDs from the scanned parcels
+      const scannedParcelIds = scannedParcels.map(parcel => parcel.id);
+      console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
+      
+      const response = await apiService.generateCompletionCode(chefAgenceScanningMission.id, scannedParcelIds);
       
       if (response.success) {
         alert(`Code de finalisation généré: ${response.completion_code}`);
@@ -493,10 +509,28 @@ const Pickup = () => {
   };
 
   // Start Chef d'agence scanning
-  const handleStartChefAgenceScanning = (mission) => {
-    setChefAgenceScanningMission(mission);
-    setIsChefAgenceScanModalOpen(true);
+  const handleStartChefAgenceScanning = async (mission) => {
+    try {
+      // Fetch full mission details with driver and demand information
+      console.log('🔍 Fetching full mission details for Chef d\'agence scanning:', mission.id);
+      const fullMissionResponse = await missionsPickupService.getMissionPickup(mission.id);
+      console.log('🔍 Full mission response:', fullMissionResponse);
+      
+      // The response is already the data due to the API interceptor
+      const fullMission = fullMissionResponse;
+      console.log('🔍 Full mission details:', fullMission);
+      
+      setChefAgenceScanningMission(fullMission);
+      setIsChefAgenceScanModalOpen(true);
+    } catch (error) {
+      console.error('❌ Error fetching full mission details:', error);
+      // Fallback to basic mission data
+      setChefAgenceScanningMission(mission);
+      setIsChefAgenceScanModalOpen(true);
+    }
   };
+
+
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Chargement des missions...</div>;
@@ -529,6 +563,7 @@ const Pickup = () => {
         onDelete={handleDelete}
         onScan={handleStartPickupScanning}
         onChefAgenceScan={handleStartChefAgenceScanning}
+
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         securityCodes={securityCodes}

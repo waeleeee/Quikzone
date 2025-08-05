@@ -23,13 +23,8 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Exclude demands that are already in missions if requested
     if (exclude_in_missions === 'true') {
-      console.log('🔍 Filtering out demands that are already in missions...');
-      demandsSqlQuery += ` AND d.id NOT IN (
-        SELECT DISTINCT md.demand_id 
-        FROM mission_demands md 
-        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
-        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
-      )`;
+      console.log('🔍 Filtering out demands that are already in missions (using in_mission field)...');
+      demandsSqlQuery += ` AND d.in_mission = FALSE`;
     }
     const queryParams = [];
     
@@ -81,13 +76,8 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Exclude demands that are already in missions if requested
     if (exclude_in_missions === 'true') {
-      console.log('🔍 Filtering out demands that are already in missions (count query)...');
-      countSqlQuery += ` AND d.id NOT IN (
-        SELECT DISTINCT md.demand_id 
-        FROM mission_demands md 
-        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
-        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
-      )`;
+      console.log('🔍 Filtering out demands that are already in missions (count query using in_mission field)...');
+      countSqlQuery += ` AND d.in_mission = FALSE`;
     }
     const countParams = [];
     

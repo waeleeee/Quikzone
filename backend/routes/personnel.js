@@ -41,7 +41,7 @@ router.get('/users', async (req, res) => {
 });
 
 // Agency Managers Management - MUST BE BEFORE GENERIC ROUTES
-// Get agency managers
+// Get agency managers (users with Chef d'agence role)
 router.get('/agency-managers', async (req, res) => {
   console.log('🚀 Agency managers route hit!');
   try {
@@ -52,21 +52,30 @@ router.get('/agency-managers', async (req, res) => {
     console.log('Query params:', { page, limit, search, offset });
     
     let query = `
-      SELECT id, name, email, phone, governorate, address, agency, 
-             CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
-             created_at
-      FROM agency_managers
-      WHERE 1=1
+      SELECT 
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.email,
+        u.phone,
+        u.created_at,
+        r.name as role,
+        'Siège' as agency,
+        'Tunis' as governorate,
+        '' as address
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = $1 AND u.is_active = true
     `;
     
-    const queryParams = [];
+    const queryParams = ['Chef d\'agence'];
     
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1 OR agency ILIKE $1)`;
+      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $${queryParams.length + 1} OR u.email ILIKE $${queryParams.length + 1})`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     console.log('Final query:', query);
@@ -77,11 +86,17 @@ router.get('/agency-managers', async (req, res) => {
     console.log('First row:', result.rows[0]);
     
     // Get total count
-    let countQuery = `SELECT COUNT(*) FROM agency_managers WHERE 1=1`;
-    const countParams = [];
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = $1 AND u.is_active = true
+    `;
+    const countParams = ['Chef d\'agence'];
     
     if (search) {
-      countQuery += ` AND (name ILIKE $1 OR email ILIKE $1 OR agency ILIKE $1)`;
+      countQuery += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $${countParams.length + 1} OR u.email ILIKE $${countParams.length + 1})`;
       countParams.push(`%${search}%`);
     }
     
@@ -120,7 +135,7 @@ const ALLOWED_AGENCIES = [
   'Tozeur', 'Tunis', 'Zaghouan'
 ];
 
-// Create new agency manager
+// Create new agency manager (user with Chef d'agence role)
 router.post('/agency-managers', async (req, res) => {
   try {
     const { name, email, phone, governorate, address, agency, password } = req.body;
@@ -136,40 +151,7 @@ router.post('/agency-managers', async (req, res) => {
     });
     console.log('🔧 Full request body:', req.body);
 
-    // Agency is now optional - no validation for now
-    console.log('🔧 Agency received:', {
-      agency,
-      agencyType: typeof agency,
-      agencyLength: agency?.length
-    });
-
-    // Check if agency exists in agencies table, if not create it (only if agency is provided)
-    if (agency && agency.trim()) {
-      let agencyExists = await db.query('SELECT id FROM agencies WHERE name = $1', [agency]);
-      if (agencyExists.rows.length === 0) {
-        // Create new agency
-        console.log(`🏢 Creating new agency: ${agency} for governorate: ${governorate}`);
-        await db.query(`
-          INSERT INTO agencies (name, governorate, address, phone, email, status)
-          VALUES ($1, $2, $3, $4, $5, 'active')
-        `, [agency, governorate, address || '', phone || '', email || '']);
-        console.log(`✅ New agency created: ${agency}`);
-      }
-    }
-
-    // Check if agency manager already exists by email
-    const existingManager = await db.query(
-      'SELECT id FROM agency_managers WHERE email = $1',
-      [email]
-    );
-    if (existingManager.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Agency manager with this email already exists'
-      });
-    }
-
-    // Check if user already exists
+    // Check if user already exists in users table
     const existingUser = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -199,22 +181,12 @@ router.post('/agency-managers', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      // Generate unique username
-      let username = email.split('@')[0];
-      let counter = 1;
-      let uniqueUsername = username;
-      while (true) {
-        const existing = await client.query('SELECT id FROM users WHERE username = $1', [uniqueUsername]);
-        if (existing.rows.length === 0) break;
-        uniqueUsername = username + counter;
-        counter++;
-      }
-      
-      const firstName = name.split(' ')[0] || name;
-      const lastName = name.split(' ').slice(1).join(' ') || '';
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
       
       console.log('👤 Creating user account:', {
-        username: uniqueUsername,
         email,
         firstName,
         lastName,
@@ -224,8 +196,8 @@ router.post('/agency-managers', async (req, res) => {
       const userResult = await client.query(`
         INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id
-      `, [uniqueUsername, email, hashedPassword, firstName, lastName, phone, true, true]);
+        RETURNING id, first_name, last_name, email, phone, created_at
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
       
       const userId = userResult.rows[0].id;
       console.log('✅ User account created with ID:', userId);
@@ -233,30 +205,29 @@ router.post('/agency-managers', async (req, res) => {
       // Get Chef d'agence role ID
       const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Chef d\'agence']);
       if (roleResult.rows.length === 0) {
-        throw new Error('Chef d\'agence role not found');
+        throw new Error('Chef d\'agence role not found in database');
       }
       const roleId = roleResult.rows[0].id;
       
       // Assign Chef d'agence role to user
       await client.query(`
-        INSERT INTO user_roles (user_id, role_id, assigned_by)
-        VALUES ($1, $2, $3)
-      `, [userId, roleId, userId]);
-      
-      // Create agency manager record
-      const result = await client.query(`
-        INSERT INTO agency_managers (name, email, phone, governorate, address, agency, password)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, name, email, phone, governorate, address, agency, 
-                  CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
-                  created_at
-      `, [name, email, phone, governorate, address, agency || null, hashedPassword]);
+        INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
+        VALUES ($1, $2, $3, $4)
+      `, [userId, roleId, userId, true]);
       
       await client.query('COMMIT');
       
+      // Return the created user data
+      const createdUser = userResult.rows[0];
+      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
+      createdUser.role = 'Chef d\'agence';
+      createdUser.agency = agency || 'Siège';
+      createdUser.governorate = governorate || 'Tunis';
+      createdUser.address = address || '';
+      
       res.status(201).json({
         success: true,
-        data: result.rows[0],
+        data: createdUser,
         message: 'Agency manager created successfully with login access'
       });
     } catch (error) {
@@ -280,73 +251,68 @@ router.post('/agency-managers', async (req, res) => {
   }
 });
 
-// Update agency manager
+// Update agency manager (user with Chef d'agence role)
 router.put('/agency-managers/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, governorate, address, agency, password } = req.body;
     
-    // Handle undefined or empty agency field
-    const agencyValue = agency && agency.trim() ? agency.trim() : null;
-    
     console.log('🔧 Updating agency manager:', {
       id,
       name,
       email,
-      agency: agencyValue,
+      agency,
       hasPassword: !!password,
       passwordLength: password?.length
     });
+    
+    // Check if user exists and has Chef d'agence role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = $2 AND u.is_active = true
+    `, [id, 'Chef d\'agence']);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agency manager not found or does not have Chef d\'agence role'
+      });
+    }
+    
+    const user = userCheck.rows[0];
     
     // Start transaction
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
       
-          // Agency is now optional - only validate if provided
-          if (agencyValue && !ALLOWED_AGENCIES.includes(agencyValue)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({
-              success: false,
-              message: "L'agence doit être l'une des 24 gouvernorats de Tunisie ou 'Siège'."
-            });
-          }
-
-          // Only one chef per agency (except for current) - only if agency is provided and not empty
-          if (agencyValue) {
-            const existing = await client.query('SELECT id FROM agency_managers WHERE agency = $1 AND id != $2', [agencyValue, id]);
-            if (existing.rows.length > 0) {
-              await client.query('ROLLBACK');
-              return res.status(400).json({
-                success: false,
-                message: "Cette agence a déjà un chef d'agence."
-              });
-            }
-          }
-
-      // Build dynamic query for agency_managers table
-      let managerQuery = `
-        UPDATE agency_managers 
-        SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, agency = $6, updated_at = CURRENT_TIMESTAMP
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Build update query for users table
+      let userQuery = `
+        UPDATE users 
+        SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
       `;
-      let managerParams = [name, email, phone, governorate, address, agencyValue];
+      let userParams = [firstName, lastName, phone];
       
       // Add password update if provided
       if (password && password.trim()) {
         console.log('🔐 Updating password for agency manager');
         const hashedPassword = await bcrypt.hash(password, 10);
-        managerQuery += `, password = $${managerParams.length + 1}`;
-        managerParams.push(hashedPassword);
-      } else {
-        console.log('⚠️ No password provided for update');
+        userQuery += `, password_hash = $${userParams.length + 1}`;
+        userParams.push(hashedPassword);
       }
       
-      managerQuery += ` WHERE id = $${managerParams.length + 1} RETURNING id, name, email, phone, governorate, address, agency, 
-                       CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
-                       updated_at`;
-      managerParams.push(id);
+      userQuery += ` WHERE id = $${userParams.length + 1} RETURNING id, first_name, last_name, email, phone, updated_at`;
+      userParams.push(id);
       
-      const result = await client.query(managerQuery, managerParams);
+      const result = await client.query(userQuery, userParams);
       
       if (result.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -356,38 +322,15 @@ router.put('/agency-managers/:id', async (req, res) => {
         });
       }
       
-      // Update corresponding user account if password is provided
-      if (password && password.trim()) {
-        console.log('🔐 Updating user account password for:', email);
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        const userUpdateResult = await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, password_hash = $4, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $5
-          RETURNING id
-        `, [firstName, lastName, phone, hashedPassword, email]);
-        
-        if (userUpdateResult.rows.length > 0) {
-          console.log('✅ User account password updated successfully');
-        } else {
-          console.log('⚠️ No user account found for email:', email);
-        }
-      } else {
-        // Update user info without password
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $4
-        `, [firstName, lastName, phone, email]);
-      }
-      
       await client.query('COMMIT');
+      
+      // Return the updated user data
+      const updatedUser = result.rows[0];
+      updatedUser.name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      updatedUser.role = 'Chef d\'agence';
+      updatedUser.agency = agency || 'Siège';
+      updatedUser.governorate = governorate || 'Tunis';
+      updatedUser.address = address || '';
       
       const message = password && password.trim() 
         ? 'Agency manager updated successfully. Password has been changed and the user can now log in with the new password.'
@@ -395,7 +338,7 @@ router.put('/agency-managers/:id', async (req, res) => {
         
       res.json({
         success: true,
-        data: result.rows[0],
+        data: updatedUser,
         message: message
       });
       
@@ -414,10 +357,26 @@ router.put('/agency-managers/:id', async (req, res) => {
   }
 });
 
-// Delete agency manager
+// Delete agency manager (remove Chef d'agence role from user)
 router.delete('/agency-managers/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if user exists and has Chef d'agence role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = $2 AND u.is_active = true
+    `, [id, 'Chef d\'agence']);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agency manager not found or does not have Chef d\'agence role'
+      });
+    }
 
     // Check if referenced in sectors
     const referenced = await db.query('SELECT id FROM sectors WHERE manager_id = $1', [id]);
@@ -428,16 +387,27 @@ router.delete('/agency-managers/:id', async (req, res) => {
       });
     }
 
+    // Get Chef d'agence role ID
+    const roleResult = await db.query('SELECT id FROM roles WHERE name = $1', ['Chef d\'agence']);
+    if (roleResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Chef d\'agence role not found in database'
+      });
+    }
+    const roleId = roleResult.rows[0].id;
+
+    // Remove Chef d'agence role from user
     const result = await db.query(`
-      DELETE FROM agency_managers 
-      WHERE id = $1
-      RETURNING id
-    `, [id]);
+      DELETE FROM user_roles 
+      WHERE user_id = $1 AND role_id = $2
+      RETURNING user_id
+    `, [id, roleId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Agency manager not found'
+        message: 'Agency manager role assignment not found'
       });
     }
 
@@ -455,38 +425,54 @@ router.delete('/agency-managers/:id', async (req, res) => {
 });
 
 // Agency Members Management - MUST BE BEFORE GENERIC ROUTES
-// Get agency members
+// Get agency members (users with Membre de l'agence role)
 router.get('/agency-members', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT id, name, email, phone, governorate, address, agency, role, status, 
-             CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
-             created_at
-      FROM agency_members
-      WHERE 1=1
+      SELECT 
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.email,
+        u.phone,
+        u.created_at,
+        r.name as role,
+        'Siège' as agency,
+        'Tunis' as governorate,
+        '' as address,
+        'active' as status
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = $1 AND u.is_active = true
     `;
     
-    const queryParams = [];
+    const queryParams = ['Membre de l\'agence'];
     
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1 OR agency ILIKE $1 OR role ILIKE $1)`;
+      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $${queryParams.length + 1} OR u.email ILIKE $${queryParams.length + 1})`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     const result = await db.query(query, queryParams);
     
     // Get total count
-    let countQuery = `SELECT COUNT(*) FROM agency_members WHERE 1=1`;
-    const countParams = [];
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = $1 AND u.is_active = true
+    `;
+    const countParams = ['Membre de l\'agence'];
     
     if (search) {
-      countQuery += ` AND (name ILIKE $1 OR email ILIKE $1 OR agency ILIKE $1 OR role ILIKE $1)`;
+      countQuery += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $${countParams.length + 1} OR u.email ILIKE $${countParams.length + 1})`;
       countParams.push(`%${search}%`);
     }
     
@@ -521,7 +507,7 @@ const ALLOWED_ROLES = [
   'Sinior OPS Membre'
 ];
 
-// Create new agency member
+// Create new agency member (user with Membre de l'agence role)
 router.post('/agency-members', async (req, res) => {
   try {
     const { name, email, phone, governorate, address, agency, role, password } = req.body;
@@ -535,28 +521,7 @@ router.post('/agency-members', async (req, res) => {
       passwordLength: password?.length
     });
 
-    // Role validation
-    if (!ALLOWED_ROLES.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: `Le rôle '${role}' n'est pas autorisé. Rôles valides: ${ALLOWED_ROLES.join(', ')}`
-      });
-    }
-    
-    // Check if agency member already exists
-    const existingMember = await db.query(
-      'SELECT id FROM agency_members WHERE email = $1',
-      [email]
-    );
-    
-    if (existingMember.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Agency member with this email already exists'
-      });
-    }
-
-    // Check if user already exists
+    // Check if user already exists in users table
     const existingUser = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -568,74 +533,82 @@ router.post('/agency-members', async (req, res) => {
       });
     }
 
-    // Hash password if provided
-    let hashedPassword = null;
-    if (password && password.trim()) {
-      console.log('🔐 Hashing password...');
-      hashedPassword = await bcrypt.hash(password, 10);
-      console.log('✅ Password hashed successfully');
+    // Hash password (required for new agency members)
+    if (!password || !password.trim()) {
+      console.log('❌ No password provided');
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required for new agency members'
+      });
     }
+    
+    console.log('🔐 Hashing password...');
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('✅ Password hashed successfully');
 
     // Start transaction
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
       
-      // Generate unique username
-      let username = email.split('@')[0];
-      let counter = 1;
-      let uniqueUsername = username;
-      while (true) {
-        const existing = await client.query('SELECT id FROM users WHERE username = $1', [uniqueUsername]);
-        if (existing.rows.length === 0) break;
-        uniqueUsername = username + counter;
-        counter++;
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      console.log('👤 Creating user account:', {
+        email,
+        firstName,
+        lastName,
+        phone
+      });
+      
+      const userResult = await client.query(`
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, first_name, last_name, email, phone, created_at
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      
+      const userId = userResult.rows[0].id;
+      console.log('✅ User account created with ID:', userId);
+      
+      // Get Membre de l'agence role ID
+      const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Membre de l\'agence']);
+      if (roleResult.rows.length === 0) {
+        throw new Error('Membre de l\'agence role not found in database');
       }
+      const roleId = roleResult.rows[0].id;
       
-      const firstName = name.split(' ')[0] || name;
-      const lastName = name.split(' ').slice(1).join(' ') || firstName;
-      
-              // Create user account if password is provided
-        let userId = null;
-        if (hashedPassword) {
-          const userResult = await client.query(`
-            INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-            VALUES ($1, $2, $3, $4, $5, true)
-            RETURNING id
-          `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
-          userId = userResult.rows[0].id;
-        
-        // Assign "Membre de l'agence" role
-        const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Membre de l\'agence']);
-        if (roleResult.rows.length > 0) {
-          await client.query(`
-            INSERT INTO user_roles (user_id, role_id)
-            VALUES ($1, $2)
-          `, [userId, roleResult.rows[0].id]);
-        }
-      }
-      
-      // Create agency member
-      const result = await client.query(`
-        INSERT INTO agency_members (name, email, phone, governorate, address, agency, role, status, password)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'Actif', $8)
-        RETURNING id, name, email, phone, governorate, address, agency, role, status, 
-                  CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password,
-                  created_at
-      `, [name, email, phone, governorate, address, agency, role, hashedPassword]);
+      // Assign Membre de l'agence role to user
+      await client.query(`
+        INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
+        VALUES ($1, $2, $3, $4)
+      `, [userId, roleId, userId, true]);
       
       await client.query('COMMIT');
       
-      console.log('✅ Agency member created successfully');
+      // Return the created user data
+      const createdUser = userResult.rows[0];
+      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
+      createdUser.role = 'Membre de l\'agence';
+      createdUser.agency = agency || 'Siège';
+      createdUser.governorate = governorate || 'Tunis';
+      createdUser.address = address || '';
+      createdUser.status = 'active';
       
       res.status(201).json({
         success: true,
-        data: result.rows[0],
-        message: 'Agency member created successfully'
+        data: createdUser,
+        message: 'Agency member created successfully with login access'
       });
     } catch (error) {
       await client.query('ROLLBACK');
-      throw error;
+      console.error('Create agency member error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create agency member',
+        error: error.message
+      });
     } finally {
       client.release();
     }
@@ -643,12 +616,13 @@ router.post('/agency-members', async (req, res) => {
     console.error('Create agency member error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create agency member'
+      message: 'Failed to create agency member',
+      error: error.message
     });
   }
 });
 
-// Update agency member
+// Update agency member (user with Membre de l'agence role)
 router.put('/agency-members/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -664,65 +638,54 @@ router.put('/agency-members/:id', async (req, res) => {
       passwordLength: password?.length
     });
 
-    // Role validation
-    if (!ALLOWED_ROLES.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: `Le rôle '${role}' n'est pas autorisé. Rôles valides: ${ALLOWED_ROLES.join(', ')}`
-      });
-    }
-
-    // Check if email is being changed and if it conflicts
-    const currentMember = await db.query('SELECT email FROM agency_members WHERE id = $1', [id]);
-    if (currentMember.rows.length === 0) {
+    // Check if user exists and has Membre de l'agence role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = $2 AND u.is_active = true
+    `, [id, 'Membre de l\'agence']);
+    
+    if (userCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Agency member not found'
+        message: 'Agency member not found or does not have Membre de l\'agence role'
       });
     }
-
-    const currentEmail = currentMember.rows[0].email;
-    if (email !== currentEmail) {
-      const existingMember = await db.query('SELECT id FROM agency_members WHERE email = $1 AND id != $2', [email, id]);
-      if (existingMember.rows.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Agency member with this email already exists'
-        });
-      }
-    }
-
-    // Hash password if provided
-    let hashedPassword = null;
-    if (password && password.trim()) {
-      console.log('🔐 Hashing password...');
-      hashedPassword = await bcrypt.hash(password, 10);
-      console.log('✅ Password hashed successfully');
-    }
-
+    
+    const user = userCheck.rows[0];
+    
     // Start transaction
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
-
-      // Update agency member
-      let updateQuery = `
-        UPDATE agency_members 
-        SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, agency = $6, role = $7, status = $8, updated_at = CURRENT_TIMESTAMP
+      
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Build update query for users table
+      let userQuery = `
+        UPDATE users 
+        SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
       `;
-      let queryParams = [name, email, phone, governorate, address, agency, role, status];
-
-      if (hashedPassword) {
-        updateQuery += `, password = $${queryParams.length + 1}`;
-        queryParams.push(hashedPassword);
+      let userParams = [firstName, lastName, phone];
+      
+      // Add password update if provided
+      if (password && password.trim()) {
+        console.log('🔐 Updating password for agency member');
+        const hashedPassword = await bcrypt.hash(password, 10);
+        userQuery += `, password_hash = $${userParams.length + 1}`;
+        userParams.push(hashedPassword);
       }
-
-      updateQuery += ` WHERE id = $${queryParams.length + 1} RETURNING id, name, email, phone, governorate, address, agency, role, status, 
-                       CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password, updated_at`;
-      queryParams.push(id);
-
-      const result = await client.query(updateQuery, queryParams);
-
+      
+      userQuery += ` WHERE id = $${userParams.length + 1} RETURNING id, first_name, last_name, email, phone, updated_at`;
+      userParams.push(id);
+      
+      const result = await client.query(userQuery, userParams);
+      
       if (result.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({
@@ -730,60 +693,28 @@ router.put('/agency-members/:id', async (req, res) => {
           message: 'Agency member not found'
         });
       }
-
-      // Update user account if password is provided
-      if (hashedPassword) {
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || firstName;
-
-        // Check if user exists
-        const existingUser = await client.query('SELECT id FROM users WHERE email = $1', [email]);
-        
-        if (existingUser.rows.length > 0) {
-          // Update existing user
-          await client.query(`
-            UPDATE users 
-            SET password_hash = $1, first_name = $2, last_name = $3, is_active = true
-            WHERE email = $4
-          `, [hashedPassword, firstName, lastName, email]);
-        } else {
-          // Create new user
-          let username = email.split('@')[0];
-          let counter = 1;
-          let uniqueUsername = username;
-          while (true) {
-            const existing = await client.query('SELECT id FROM users WHERE username = $1', [uniqueUsername]);
-            if (existing.rows.length === 0) break;
-            uniqueUsername = username + counter;
-            counter++;
-          }
-
-          const userResult = await client.query(`
-            INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-            VALUES ($1, $2, $3, $4, $5, true)
-            RETURNING id
-          `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
-
-          // Assign "Membre de l'agence" role
-          const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Membre de l\'agence']);
-          if (roleResult.rows.length > 0) {
-            await client.query(`
-              INSERT INTO user_roles (user_id, role_id)
-              VALUES ($1, $2)
-            `, [userResult.rows[0].id, roleResult.rows[0].id]);
-          }
-        }
-      }
-
+      
       await client.query('COMMIT');
       
-      console.log('✅ Agency member updated successfully');
+      // Return the updated user data
+      const updatedUser = result.rows[0];
+      updatedUser.name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      updatedUser.role = 'Membre de l\'agence';
+      updatedUser.agency = agency || 'Siège';
+      updatedUser.governorate = governorate || 'Tunis';
+      updatedUser.address = address || '';
+      updatedUser.status = status || 'active';
       
+      const message = password && password.trim() 
+        ? 'Agency member updated successfully. Password has been changed and the user can now log in with the new password.'
+        : 'Agency member updated successfully';
+        
       res.json({
         success: true,
-        data: result.rows[0],
-        message: 'Agency member updated successfully'
+        data: updatedUser,
+        message: message
       });
+      
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -799,24 +730,51 @@ router.put('/agency-members/:id', async (req, res) => {
   }
 });
 
-// Delete agency member
+// Delete agency member (remove Membre de l'agence role from user)
 router.delete('/agency-members/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if user exists and has Membre de l'agence role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = $2 AND u.is_active = true
+    `, [id, 'Membre de l\'agence']);
     
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agency member not found or does not have Membre de l\'agence role'
+      });
+    }
+
+    // Get Membre de l'agence role ID
+    const roleResult = await db.query('SELECT id FROM roles WHERE name = $1', ['Membre de l\'agence']);
+    if (roleResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Membre de l\'agence role not found in database'
+      });
+    }
+    const roleId = roleResult.rows[0].id;
+
+    // Remove Membre de l'agence role from user
     const result = await db.query(`
-      DELETE FROM agency_members 
-      WHERE id = $1
-      RETURNING id
-    `, [id]);
-    
+      DELETE FROM user_roles 
+      WHERE user_id = $1 AND role_id = $2
+      RETURNING user_id
+    `, [id, roleId]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Agency member not found'
+        message: 'Agency member role assignment not found'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Agency member deleted successfully'
@@ -830,36 +788,50 @@ router.delete('/agency-members/:id', async (req, res) => {
   }
 });
 
-// Get administrators specifically
+// Get administrators specifically (users with Administration role)
 router.get('/administrators', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT id, name, email, phone, governorate, address, role, created_at
-      FROM administrators
-      WHERE 1=1
+      SELECT 
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.email,
+        u.phone,
+        u.created_at,
+        r.name as role
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = 'Administration' AND u.is_active = true
     `;
     
     const queryParams = [];
     
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1)`;
+      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     const result = await db.query(query, queryParams);
     
     // Get total count
-    let countQuery = `SELECT COUNT(*) FROM administrators WHERE 1=1`;
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = 'Administration' AND u.is_active = true
+    `;
     const countParams = [];
     
     if (search) {
-      countQuery += ` AND (name ILIKE $1 OR email ILIKE $1)`;
+      countQuery += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
       countParams.push(`%${search}%`);
     }
     
@@ -885,23 +857,10 @@ router.get('/administrators', async (req, res) => {
   }
 });
 
-// Create new administrator
+// Create new administrator (user with Administration role)
 router.post('/administrators', async (req, res) => {
   try {
     const { name, email, password, phone, governorate, address, role } = req.body;
-    
-    // Check if administrator already exists
-    const existingAdmin = await db.query(
-      'SELECT id FROM administrators WHERE email = $1',
-      [email]
-    );
-    
-    if (existingAdmin.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Administrator with this email already exists'
-      });
-    }
     
     // Check if user already exists in users table
     const existingUser = await db.query(
@@ -932,19 +891,24 @@ router.post('/administrators', async (req, res) => {
     try {
       await client.query('BEGIN');
       
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
       // Create user in users table
       const userResult = await client.query(`
         INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id
-      `, [email, email, hashedPassword, name, '', phone, true, true]);
+        RETURNING id, first_name, last_name, email, phone, created_at
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
       
       const userId = userResult.rows[0].id;
       
       // Get role ID for Administration
       const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Administration']);
       if (roleResult.rows.length === 0) {
-        throw new Error('Administration role not found');
+        throw new Error('Administration role not found in database');
       }
       
       const roleId = roleResult.rows[0].id;
@@ -955,20 +919,18 @@ router.post('/administrators', async (req, res) => {
         VALUES ($1, $2, $3, $4)
       `, [userId, roleId, userId, true]);
       
-      // Create administrator record
-      const adminResult = await client.query(`
-        INSERT INTO administrators (name, email, password, phone, governorate, address, role)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, name, email, phone, governorate, address, role, created_at
-      `, [name, email, hashedPassword, phone, governorate, address, role]);
-      
       await client.query('COMMIT');
     
-    res.status(201).json({
-      success: true,
-        data: adminResult.rows[0],
-      message: 'Administrator created successfully'
-    });
+      // Return the created user data
+      const createdUser = userResult.rows[0];
+      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
+      createdUser.role = 'Administration';
+      
+      res.status(201).json({
+        success: true,
+        data: createdUser,
+        message: 'Administrator created successfully'
+      });
       
     } catch (error) {
       await client.query('ROLLBACK');
@@ -986,11 +948,27 @@ router.post('/administrators', async (req, res) => {
   }
 });
 
-// Update administrator
+// Update administrator (user with Administration role)
 router.put('/administrators/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, password, phone, governorate, address, role } = req.body;
+    
+    // Check if user exists and has Administration role
+    const existingUser = await db.query(`
+      SELECT u.id, u.first_name, u.last_name, u.email, u.phone
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = 'Administration'
+    `, [id]);
+    
+    if (existingUser.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Administrator not found'
+      });
+    }
     
     // Hash password if provided
     let hashedPassword = null;
@@ -1003,59 +981,53 @@ router.put('/administrators/:id', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      // Build update query for administrators table
-      let adminQuery, adminParams;
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Build update query for users table
+      let userQuery, userParams;
       if (hashedPassword) {
-        adminQuery = `
-          UPDATE administrators 
-          SET name = $1, email = $2, password = $3, phone = $4, governorate = $5, address = $6, role = $7, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $8
-          RETURNING id, name, email, phone, governorate, address, role, updated_at
+        userQuery = `
+          UPDATE users 
+          SET first_name = $1, last_name = $2, email = $3, password_hash = $4, phone = $5, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $6
+          RETURNING id, first_name, last_name, email, phone, updated_at
         `;
-        adminParams = [name, email, hashedPassword, phone, governorate, address, role, id];
+        userParams = [firstName, lastName, email, hashedPassword, phone, id];
       } else {
-        adminQuery = `
-      UPDATE administrators 
-      SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, role = $6, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7
-      RETURNING id, name, email, phone, governorate, address, role, updated_at
+        userQuery = `
+          UPDATE users 
+          SET first_name = $1, last_name = $2, email = $3, phone = $4, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $5
+          RETURNING id, first_name, last_name, email, phone, updated_at
         `;
-        adminParams = [name, email, phone, governorate, address, role, id];
+        userParams = [firstName, lastName, email, phone, id];
       }
     
-      const adminResult = await client.query(adminQuery, adminParams);
+      const userResult = await client.query(userQuery, userParams);
       
-      if (adminResult.rows.length === 0) {
+      if (userResult.rows.length === 0) {
         await client.query('ROLLBACK');
-      return res.status(404).json({
-        success: false,
-        message: 'Administrator not found'
-      });
-    }
-      
-      // If password was changed, also update the users table
-      if (hashedPassword) {
-        await client.query(`
-          UPDATE users 
-          SET first_name = $1, email = $2, password_hash = $3, phone = $4, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $5
-        `, [name, email, hashedPassword, phone, email]);
-      } else {
-        // Update other fields in users table
-        await client.query(`
-          UPDATE users 
-          SET first_name = $1, email = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $4
-        `, [name, email, phone, email]);
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
       }
       
       await client.query('COMMIT');
     
-    res.json({
-      success: true,
-        data: adminResult.rows[0],
-      message: 'Administrator updated successfully'
-    });
+      // Return the updated user data
+      const updatedUser = userResult.rows[0];
+      updatedUser.name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      updatedUser.role = 'Administration';
+      
+      res.json({
+        success: true,
+        data: updatedUser,
+        message: 'Administrator updated successfully'
+      });
       
     } catch (error) {
       await client.query('ROLLBACK');
@@ -1073,28 +1045,55 @@ router.put('/administrators/:id', async (req, res) => {
   }
 });
 
-// Delete administrator
+// Delete administrator (user with Administration role)
 router.delete('/administrators/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await db.query(`
-      DELETE FROM administrators 
-      WHERE id = $1
-      RETURNING id
+    // Check if user exists and has Administration role
+    const existingUser = await db.query(`
+      SELECT u.id
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = 'Administration'
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (existingUser.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Administrator not found'
       });
     }
     
-    res.json({
-      success: true,
-      message: 'Administrator deleted successfully'
-    });
+    // Start transaction
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Remove the Administration role from user
+      await client.query(`
+        DELETE FROM user_roles 
+        WHERE user_id = $1 AND role_id = (SELECT id FROM roles WHERE name = 'Administration')
+      `, [id]);
+      
+      // Optionally, you can also deactivate the user instead of deleting
+      // await client.query('UPDATE users SET is_active = false WHERE id = $1', [id]);
+      
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Administrator role removed successfully'
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
   } catch (error) {
     console.error('Delete administrator error:', error);
     res.status(500).json({
@@ -1104,27 +1103,39 @@ router.delete('/administrators/:id', async (req, res) => {
   }
 });
 
-// Get commercials specifically
+// Get commercials specifically (users with Commercial role)
 router.get('/commercials', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT id, name, email, phone, governorate, address, title, clients_count, shipments_received, created_at,
-             CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password
-      FROM commercials
-      WHERE 1=1
+      SELECT 
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.email,
+        u.phone,
+        u.created_at,
+        r.name as role,
+        'Commercial' as title,
+        0 as clients_count,
+        0 as shipments_received,
+        'Tunis' as governorate,
+        '' as address
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = 'Commercial' AND u.is_active = true
     `;
     
     const queryParams = [];
     
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1)`;
+      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     const result = await db.query(query, queryParams);
@@ -1142,25 +1153,12 @@ router.get('/commercials', async (req, res) => {
   }
 });
 
-// Create new commercial
+// Create new commercial (user with Commercial role)
 router.post('/commercials', async (req, res) => {
   try {
     const { name, email, phone, governorate, address, title, password } = req.body;
     
-    // Check if commercial already exists
-    const existingCommercial = await db.query(
-      'SELECT id FROM commercials WHERE email = $1',
-      [email]
-    );
-    
-    if (existingCommercial.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Commercial with this email already exists'
-      });
-    }
-    
-    // Check if user already exists
+    // Check if user already exists in users table
     const existingUser = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -1175,12 +1173,13 @@ router.post('/commercials', async (req, res) => {
     
     // Hash password if provided
     let hashedPassword = null;
-    if (password && password.trim()) {
+    if (password && password.trim() !== '') {
       hashedPassword = await bcrypt.hash(password, 10);
     } else {
-      // Generate default password if none provided
-      const defaultPassword = 'wael123';
-      hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
     }
     
     // Start transaction
@@ -1188,46 +1187,48 @@ router.post('/commercials', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      // Create user account
-      const username = email.split('@')[0]; // Use email prefix as username
-      const firstName = name.split(' ')[0] || name;
-      const lastName = name.split(' ').slice(1).join(' ') || '';
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
       
+      // Create user in users table
       const userResult = await client.query(`
         INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id
-      `, [username, email, hashedPassword, firstName, lastName, phone, true, true]);
+        RETURNING id, first_name, last_name, email, phone, created_at
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
       
       const userId = userResult.rows[0].id;
       
-      // Get Commercial role ID
+      // Get role ID for Commercial
       const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Commercial']);
       if (roleResult.rows.length === 0) {
-        throw new Error('Commercial role not found');
+        throw new Error('Commercial role not found in database');
       }
       
       const roleId = roleResult.rows[0].id;
       
-      // Assign Commercial role to user
+      // Assign role to user
       await client.query(`
-        INSERT INTO user_roles (user_id, role_id, assigned_by)
-        VALUES ($1, $2, $3)
-      `, [userId, roleId, userId]);
-      
-      // Create commercial record
-      const commercialResult = await client.query(`
-        INSERT INTO commercials (name, email, phone, governorate, address, title, password)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, name, email, phone, governorate, address, title, created_at
-      `, [name, email, phone, governorate, address, title, hashedPassword]);
+        INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
+        VALUES ($1, $2, $3, $4)
+      `, [userId, roleId, userId, true]);
       
       await client.query('COMMIT');
+    
+      // Return the created user data
+      const createdUser = userResult.rows[0];
+      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
+      createdUser.role = 'Commercial';
+      createdUser.title = title || 'Commercial';
+      createdUser.clients_count = 0;
+      createdUser.shipments_received = 0;
       
       res.status(201).json({
         success: true,
-        data: commercialResult.rows[0],
-        message: 'Commercial created successfully with login access'
+        data: createdUser,
+        message: 'Commercial created successfully'
       });
       
     } catch (error) {
@@ -1734,38 +1735,54 @@ router.get('/commercials/:id/stats', async (req, res) => {
   }
 });
 
-// Get accountants specifically
+// Get accountants specifically (users with Finance role)
 router.get('/accountants', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT a.id, a.name, a.email, a.phone, a.governorate, a.address, a.title, a.agency, a.created_at,
-             CASE WHEN a.password IS NOT NULL AND u.id IS NOT NULL THEN true ELSE false END as has_password
-      FROM accountants a
-      LEFT JOIN users u ON a.email = u.email
-      WHERE 1=1
+      SELECT 
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.email,
+        u.phone,
+        u.created_at,
+        r.name as role,
+        'Comptable' as title,
+        'Siège' as agency,
+        'Tunis' as governorate,
+        '' as address
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = 'Finance' AND u.is_active = true
     `;
     
     const queryParams = [];
     
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1)`;
+      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     const result = await db.query(query, queryParams);
     
     // Get total count
-    let countQuery = `SELECT COUNT(*) FROM accountants a WHERE 1=1`;
+    let countQuery = `
+      SELECT COUNT(*) 
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE r.name = 'Finance' AND u.is_active = true
+    `;
     const countParams = [];
     
     if (search) {
-      countQuery += ` AND (a.name ILIKE $1 OR a.email ILIKE $1)`;
+      countQuery += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
       countParams.push(`%${search}%`);
     }
     
@@ -1791,7 +1808,7 @@ router.get('/accountants', async (req, res) => {
   }
 });
 
-// Create new accountant
+// Create new accountant (user with Finance role)
 router.post('/accountants', async (req, res) => {
   try {
     const { name, email, phone, governorate, address, title, agency, password } = req.body;
@@ -1803,19 +1820,7 @@ router.post('/accountants', async (req, res) => {
       passwordLength: password?.length
     });
 
-    // Check if accountant already exists
-    const existingAccountant = await db.query(
-      'SELECT id FROM accountants WHERE email = $1',
-      [email]
-    );
-    if (existingAccountant.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Accountant with this email already exists'
-      });
-    }
-
-    // Check if user already exists
+    // Check if user already exists in users table
     const existingUser = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [email]
@@ -1844,53 +1849,55 @@ router.post('/accountants', async (req, res) => {
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
-      // Generate unique username
-      let username = email.split('@')[0];
-      let counter = 1;
-      let uniqueUsername = username;
-      while (true) {
-        const existing = await client.query('SELECT id FROM users WHERE username = $1', [uniqueUsername]);
-        if (existing.rows.length === 0) break;
-        uniqueUsername = username + counter;
-        counter++;
-      }
-      const firstName = name.split(' ')[0] || name;
-      const lastName = name.split(' ').slice(1).join(' ') || '';
+      
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
       console.log('👤 Creating user account:', {
-        username: uniqueUsername,
         email,
         firstName,
         lastName,
         phone
       });
+      
       const userResult = await client.query(`
         INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id
-      `, [uniqueUsername, email, hashedPassword, firstName, lastName, phone, true, true]);
+        RETURNING id, first_name, last_name, email, phone, created_at
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      
       const userId = userResult.rows[0].id;
       console.log('✅ User account created with ID:', userId);
-      // Get Accountant role ID
-      const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Comptable']);
+      
+      // Get Finance role ID
+      const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Finance']);
       if (roleResult.rows.length === 0) {
-        throw new Error('Comptable role not found');
+        throw new Error('Finance role not found in database');
       }
       const roleId = roleResult.rows[0].id;
-      // Assign Accountant role to user
+      
+      // Assign Finance role to user
       await client.query(`
-        INSERT INTO user_roles (user_id, role_id, assigned_by)
-        VALUES ($1, $2, $3)
-      `, [userId, roleId, userId]);
-      // Create accountant record
-      const result = await client.query(`
-        INSERT INTO accountants (name, email, phone, governorate, address, title, agency, password)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, name, email, phone, governorate, address, title, agency, created_at
-      `, [name, email, phone, governorate, address, title, agency, hashedPassword]);
+        INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
+        VALUES ($1, $2, $3, $4)
+      `, [userId, roleId, userId, true]);
+      
       await client.query('COMMIT');
+      
+      // Return the created user data
+      const createdUser = userResult.rows[0];
+      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
+      createdUser.role = 'Finance';
+      createdUser.title = title || 'Comptable';
+      createdUser.agency = agency || 'Siège';
+      createdUser.governorate = governorate || 'Tunis';
+      createdUser.address = address || '';
+      
       res.status(201).json({
         success: true,
-        data: result.rows[0],
+        data: createdUser,
         message: 'Accountant created successfully with login access'
       });
     } catch (error) {

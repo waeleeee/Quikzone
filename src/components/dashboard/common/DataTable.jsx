@@ -87,6 +87,7 @@ const DataTable = ({
                         onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
                         onScan={onScan ? (e) => { e.stopPropagation(); onScan(item); } : undefined}
                         onChefAgenceScan={onChefAgenceScan ? (e) => { e.stopPropagation(); onChefAgenceScan(item); } : undefined}
+
                         currentUser={currentUser}
                         item={item}
                       />

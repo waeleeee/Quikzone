@@ -375,7 +375,7 @@ const ColisCreate = ({ onClose }) => {
       }
 
       // First, get the shipper_id based on the user's email
-      let shipperId = 1; // default fallback
+      let shipperId = null; // No default fallback
       try {
         const shippersResponse = await apiService.getShippers();
         const shipper = shippersResponse.find(s => s.email === currentUser.email);
@@ -383,9 +383,19 @@ const ColisCreate = ({ onClose }) => {
           shipperId = shipper.id;
         } else {
           console.warn('No shipper found for email:', currentUser.email);
+          alert('Erreur: Aucun expéditeur trouvé pour cet utilisateur. Veuillez contacter l\'administrateur.');
+          return;
         }
       } catch (error) {
         console.error('Error fetching shippers:', error);
+        alert('Erreur lors de la récupération des expéditeurs. Veuillez réessayer.');
+        return;
+      }
+
+      // Check if we have a valid shipper_id
+      if (!shipperId) {
+        alert('Erreur: Impossible de déterminer l\'expéditeur. Veuillez contacter l\'administrateur.');
+        return;
       }
 
       // Prepare parcel data for API

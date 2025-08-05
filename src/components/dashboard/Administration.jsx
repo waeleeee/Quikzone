@@ -3,14 +3,6 @@ import DataTable from "./common/DataTable";
 import Modal from "./common/Modal";
 import { apiService } from "../../services/api";
 
-// List of Tunisian governorates
-const gouvernorats = [
-  "Ariana", "Béja", "Ben Arous", "Bizerte", "Gabès", "Gafsa", "Jendouba", 
-  "Kairouan", "Kasserine", "Kébili", "Kef", "Mahdia", "Manouba", "Médenine", 
-  "Monastir", "Nabeul", "Sfax", "Sidi Bouzid", "Siliana", "Sousse", "Tataouine", 
-  "Tozeur", "Tunis", "Zaghouan"
-];
-
 const Administration = () => {
   const [administrators, setAdministrators] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,9 +32,7 @@ const Administration = () => {
     email: "",
     password: "",
     phone: "",
-    address: "",
-    role: "admin",
-    governorate: "Tunis"
+    role: "Administration"
   });
 
   const columns = [
@@ -50,8 +40,6 @@ const Administration = () => {
     { key: "name", header: "Nom" },
     { key: "email", header: "Email" },
     { key: "phone", header: "Téléphone" },
-    { key: "governorate", header: "Gouvernorat" },
-    { key: "address", header: "Adresse" },
     { key: "role", header: "Rôle" },
   ];
 
@@ -63,9 +51,7 @@ const Administration = () => {
       email: "",
       password: "",
       phone: "",
-      address: "",
-      role: "admin",
-      governorate: "Tunis"
+      role: "Administration"
     });
     setIsModalOpen(true);
   };
@@ -251,33 +237,6 @@ const Administration = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 ">
-                Gouvernorat
-              </label>
-              <select
-                name="governorate"
-                value={formData.governorate}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {gouvernorats.map(gov => (
-                  <option key={gov} value={gov}>{gov}</option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1 ">
-                Adresse
-              </label>
-              <input
-                type="text"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 ">
                 Rôle
               </label>
               <select
@@ -285,10 +244,9 @@ const Administration = () => {
                 value={formData.role}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                disabled
               >
-                <option value="admin">Admin</option>
-                <option value="Gestionnaire utilisateurs">Gestionnaire utilisateurs</option>
-                <option value="Responsable sécurité">Responsable sécurité</option>
+                <option value="Administration">Administration</option>
               </select>
             </div>
           </div>

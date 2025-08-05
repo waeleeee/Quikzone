@@ -1057,7 +1057,19 @@ export const apiService = {
   getAdministrators: async () => {
     try {
       const response = await api.get('/personnel/administrators');
-      return response.data || [];
+      console.log('📋 Administrators API response:', response);
+      
+      // Handle different response formats
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Returning data.data array:', response.data.data.length);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Returning data array:', response.data.length);
+        return response.data;
+      } else {
+        console.warn('❌ Unexpected administrators response format:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Get administrators error:', error);
       return [];
@@ -1095,6 +1107,28 @@ export const apiService = {
   },
 
   // Commercial Management
+  getCommercials: async () => {
+    try {
+      const response = await api.get('/personnel/commercials');
+      console.log('📋 Commercials API response:', response);
+      
+      // Handle different response formats
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Returning data.data array:', response.data.data.length);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Returning data array:', response.data.length);
+        return response.data;
+      } else {
+        console.warn('❌ Unexpected commercials response format:', response.data);
+        return [];
+      }
+    } catch (error) {
+      console.error('Get commercials error:', error);
+      return [];
+    }
+  },
+
   createCommercial: async (commercialData) => {
     try {
       const response = await api.post('/personnel/commercials', commercialData);
@@ -1271,10 +1305,18 @@ export const apiService = {
       const response = await api.get('/personnel/accountants');
       console.log('🔍 Raw response from accountants API:', response);
       console.log('📊 Response data:', response.data);
-      console.log('📋 Data array:', response.data);
-      const result = response.data || [];
-      console.log('📋 Final result:', result);
-      return result;
+      
+      // Handle different response formats
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Returning data.data array:', response.data.data.length);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Returning data array:', response.data.length);
+        return response.data;
+      } else {
+        console.warn('❌ Unexpected comptables response format:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('❌ Get comptables error:', error);
       console.error('❌ Error details:', error.response?.data);
@@ -1316,7 +1358,17 @@ export const apiService = {
   getAgencyMembers: async () => {
     try {
       const response = await api.get('/personnel/agency-members');
-      return response.data;
+      console.log('📋 Agency members API response:', response);
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Returning data.data array:', response.data.data.length);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Returning data array:', response.data.length);
+        return response.data;
+      } else {
+        console.warn('❌ Unexpected agency members response format:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Get agency members error:', error);
       return [];
@@ -1405,10 +1457,17 @@ export const apiService = {
   getAgencyManagers: async () => {
     try {
       const response = await api.get('/personnel/agency-managers');
-      console.log('Agency managers response:', response);
-      // The backend returns { success: true, data: [...], pagination: {...} }
-      // We need to return just the data array
-      return response.data?.data || response.data || [];
+      console.log('📋 Agency managers API response:', response);
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Returning data.data array:', response.data.data.length);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Returning data array:', response.data.length);
+        return response.data;
+      } else {
+        console.warn('❌ Unexpected agency managers response format:', response.data);
+        return [];
+      }
     } catch (error) {
       console.error('Get agency managers error:', error);
       return [];
@@ -2124,7 +2183,8 @@ export const missionsPickupService = {
       console.log('🔍 getMissionPickup called with id:', id);
       const response = await api.get(`/missions-pickup/${id}`);
       console.log('📡 getMissionPickup response:', response);
-      return response.data;
+      // The response is already the data due to the API interceptor
+      return response;
     } catch (error) {
       console.error('❌ getMissionPickup error:', error);
       throw error;
@@ -2142,6 +2202,8 @@ export const missionsPickupService = {
       throw error;
     }
   },
+  
+
 }; 
 
 // Delivery missions service

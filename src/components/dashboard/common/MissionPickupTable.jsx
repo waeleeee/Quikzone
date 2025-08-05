@@ -55,14 +55,14 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, onChef
       ),
     },
     {
-      key: "security_code",
-      label: "Code de Sécurité",
+      key: "completion_code",
+      label: "Code de Finalisation",
       render: (_, mission) => {
-        const code = securityCodes[mission.id];
+        const code = mission.completion_code;
         if (!code) return <span className="text-gray-400 text-xs">Non généré</span>;
         return (
           <div className="flex items-center space-x-2">
-            <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-800">
+            <code className="bg-green-100 px-2 py-1 rounded text-xs font-mono text-green-800">
               {code}
             </code>
             <button
@@ -70,7 +70,7 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, onChef
                 e.stopPropagation();
                 navigator.clipboard.writeText(code);
               }}
-              className="text-blue-600 hover:text-blue-800 text-xs"
+              className="text-green-600 hover:text-green-800 text-xs"
               title="Copier le code"
             >
               📋
@@ -92,6 +92,7 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, onChef
       onDelete={onDelete}
       onScan={onScan}
       onChefAgenceScan={onChefAgenceScan}
+      
       onRowClick={onView}
       currentUser={currentUser}
     />

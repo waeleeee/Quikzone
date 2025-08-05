@@ -285,11 +285,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const missionNumber = `PIK${Date.now()}`;
     
     // Generate unique security code - Updated for new mission creation - Fixed column names - Fixed governorate - Added debugging - Fixed users table queries
-const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-let securityCode = '';
-for (let i = 0; i < 6; i++) {
-  securityCode += chars.charAt(Math.floor(Math.random() * chars.length));
-}
+    // Security code will be generated when mission is completed
     
     // Get the first shipper from the selected demands for shipper_id
     const firstDemand = demandCheckResult.rows[0];
@@ -306,33 +302,31 @@ for (let i = 0; i < 6; i++) {
     
     console.log('🔍 Creating mission with data:', {
       missionNumber,
-      securityCode,
       livreur_id,
       shipperId,
       scheduled_date: new Date(),
       created_by: req.user.id
     });
     
-    // Create mission
+    // Create mission (without security code - will be generated when completed)
     const createMissionSqlQuery = `
       INSERT INTO pickup_missions (
         mission_number, driver_id, shipper_id, scheduled_date, 
-        created_by, status, security_code
+        created_by, status
       )
-      VALUES ($1, $2, $3, $4, $5, 'En attente', $6)
+      VALUES ($1, $2, $3, $4, $5, 'En attente')
       RETURNING id
     `;
     
     console.log('🔍 SQL Query:', createMissionSqlQuery);
-    console.log('🔍 SQL Parameters:', [missionNumber, livreur_id, shipperId, new Date(), req.user.id, securityCode]);
+    console.log('🔍 SQL Parameters:', [missionNumber, livreur_id, shipperId, new Date(), req.user.id]);
     
     const missionResult = await client.query(createMissionSqlQuery, [
       missionNumber,
       livreur_id,
       shipperId,
       new Date(), // scheduled_date
-      req.user.id, // created_by - use actual user ID
-      securityCode
+      req.user.id // created_by - use actual user ID
     ]);
     
     const missionId = missionResult.rows[0].id;
@@ -344,6 +338,13 @@ for (let i = 0; i < 6; i++) {
         [missionId, demandId]
       );
     }
+    
+    // Update demands to mark them as in mission
+    await client.query(
+      'UPDATE demands SET in_mission = TRUE WHERE id = ANY($1)',
+      [demand_ids]
+    );
+    console.log('🔍 Updated demands to in_mission = TRUE:', demand_ids);
     
     // Add parcels to mission
     const parcelsSqlQuery = `
@@ -478,10 +479,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     const demandsResult = await pool.query(demandsSqlQuery, [id]);
     
-    // Get parcels in this mission
+    // Get parcels in this mission (directly assigned)
     const parcelsSqlQuery = `
       SELECT 
-        mp.*,
+        mp.parcel_id,
         p.tracking_number,
         p.destination,
         p.status as parcel_status,
@@ -492,16 +493,46 @@ router.get('/:id', authenticateToken, async (req, res) => {
       LEFT JOIN parcels p ON mp.parcel_id = p.id
       LEFT JOIN shippers s ON p.shipper_id = s.id
       WHERE mp.mission_id = $1
-      ORDER BY mp.mission_id ASC
+      ORDER BY mp.parcel_id ASC
     `;
     
     const parcelsResult = await pool.query(parcelsSqlQuery, [id]);
     
     const fullMission = await getFullMission(mission);
+    
+    // Get parcels for each demand from demand_parcels table
+    const demandsWithParcels = await Promise.all(demandsResult.rows.map(async (demand) => {
+      const demandParcelsQuery = `
+        SELECT 
+          p.id,
+          p.tracking_number,
+          p.destination,
+          p.status,
+          s.name as shipper_name
+        FROM parcels p
+        INNER JOIN demand_parcels dp ON p.id = dp.parcel_id
+        LEFT JOIN shippers s ON p.shipper_id = s.id
+        WHERE dp.demand_id = $1
+      `;
+      
+      const demandParcelsResult = await pool.query(demandParcelsQuery, [demand.id]);
+      
+      return {
+        ...demand,
+        parcels: demandParcelsResult.rows
+      };
+    }));
+    
     res.json({
       ...fullMission,
-      demands: demandsResult.rows,
-      parcels: parcelsResult.rows
+      demands: demandsWithParcels,
+      parcels: parcelsResult.rows.map(parcel => ({
+        id: parcel.parcel_id,
+        tracking_number: parcel.tracking_number,
+        destination: parcel.destination,
+        status: parcel.parcel_status,
+        shipper_name: parcel.shipper_name
+      }))
     });
     
   } catch (error) {
@@ -519,10 +550,28 @@ router.put('/:id/scan-parcel', authenticateToken, async (req, res) => {
     const { tracking_number } = req.body;
     
     console.log('📱 scanParcel called with missionId:', id, 'trackingNumber:', tracking_number);
+    console.log('👤 Current user role:', req.user.role);
+    console.log('👤 Current user:', req.user);
     
     // Check if user has permission to scan parcels
-    if (!['Admin', 'Administration', 'Chef d\'agence', 'Membre de l\'agence'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+    const allowedRoles = ['Admin', 'Administration', 'Chef d\'agence', 'Membre de l\'agence'];
+    console.log('🔍 Allowed roles:', allowedRoles);
+    console.log('🔍 User role:', req.user.role);
+    console.log('🔍 User email:', req.user.email);
+    console.log('🔍 Role check result:', allowedRoles.includes(req.user.role));
+    
+    // Also allow Livreur and Livreurs for testing (they might need to scan too)
+    const extendedAllowedRoles = [...allowedRoles, 'Livreur', 'Livreurs'];
+    console.log('🔍 Extended allowed roles:', extendedAllowedRoles);
+    console.log('🔍 Extended role check result:', extendedAllowedRoles.includes(req.user.role));
+    
+    if (!extendedAllowedRoles.includes(req.user.role)) {
+      console.log('❌ Permission denied for role:', req.user.role);
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        userRole: req.user.role,
+        allowedRoles: extendedAllowedRoles
+      });
     }
     
     await client.query('BEGIN');
@@ -936,8 +985,8 @@ router.post('/:id/chef-agence-scan', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { parcelId } = req.body;
     
-    // Check if user has permission (Chef d'agence only)
-    if (req.user.role !== 'Chef d\'agence') {
+    // Check if user has permission (Chef d'agence, Admin, or Administration)
+    if (!['Chef d\'agence', 'Admin', 'Administration'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
     
@@ -1012,6 +1061,8 @@ router.post('/:id/chef-agence-scan', authenticateToken, async (req, res) => {
   }
 });
 
+
+
 // Chef d'agence generate completion code
 router.post('/:id/generate-completion-code', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -1020,8 +1071,8 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
     const { id } = req.params;
     const { scannedParcels } = req.body;
     
-    // Check if user has permission (Chef d'agence only)
-    if (req.user.role !== 'Chef d\'agence') {
+    // Check if user has permission (Chef d'agence, Admin, or Administration)
+    if (!['Chef d\'agence', 'Admin', 'Administration'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
     
@@ -1029,9 +1080,11 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
     
     // Check if mission exists and is in correct status
     const missionCheck = await client.query(`
-      SELECT id, status, security_code FROM pickup_missions 
+      SELECT id, status FROM pickup_missions 
       WHERE id = $1
     `, [id]);
+    
+    console.log('🔍 Mission check result:', missionCheck.rows[0]);
     
     if (missionCheck.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -1041,11 +1094,16 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
       });
     }
     
-    if (missionCheck.rows[0].status !== 'Enlevé') {
+    const missionStatus = missionCheck.rows[0].status;
+    console.log('🔍 Mission status:', missionStatus);
+    console.log('🔍 Expected status: Enlevé');
+    console.log('🔍 Status matches:', missionStatus === 'Enlevé');
+    
+    if (missionStatus !== 'Enlevé') {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Mission cannot generate code in current status'
+        message: `Mission cannot generate code in current status: ${missionStatus}. Expected: Enlevé`
       });
     }
     
@@ -1057,25 +1115,38 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
       WHERE mp.mission_id = $1
     `, [id]);
     
-    if (scannedParcels.length !== totalParcels.rows[0].total) {
+    console.log('🔍 Raw scannedParcels:', scannedParcels);
+    
+    // Extract parcel IDs from scanned parcels (handle both object and ID formats)
+    const scannedParcelIds = scannedParcels.map(parcel => 
+      typeof parcel === 'object' ? parcel.id : parcel
+    );
+    
+    console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
+    console.log('🔍 Total parcels in mission:', totalParcels.rows[0].total);
+    console.log('🔍 Scanned count:', scannedParcelIds.length);
+    console.log('🔍 Total count:', totalParcels.rows[0].total);
+    console.log('🔍 Counts match:', scannedParcelIds.length === totalParcels.rows[0].total);
+    
+    if (scannedParcelIds.length !== totalParcels.rows[0].total) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'All parcels must be scanned before generating completion code'
+        message: `All parcels must be scanned before generating completion code. Scanned: ${scannedParcelIds.length}, Total: ${totalParcels.rows[0].total}`
       });
     }
     
-    // Generate new completion code
+    // Generate completion code
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let completionCode = '';
     for (let i = 0; i < 6; i++) {
       completionCode += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     
-    // Update mission with completion code
+    // Update mission with completion code and change status to "Terminé"
     await client.query(`
       UPDATE pickup_missions 
-      SET completion_code = $1, updated_at = CURRENT_TIMESTAMP
+      SET completion_code = $1, status = 'Terminé', updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [completionCode, id]);
     
@@ -1094,7 +1165,8 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
     
     res.json({
       success: true,
-      message: 'Completion code generated successfully',
+      message: 'Mission completed successfully',
+      security_code: securityCode,
       completion_code: completionCode
     });
     

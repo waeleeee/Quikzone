@@ -51,8 +51,8 @@ const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChe
         </svg>
       </button>
     )}
-    {/* Chef d'agence scan button - only show for Chef d'agence role and missions with status "Enlevé" */}
-    {onChefAgenceScan && currentUser?.role === 'Chef d\'agence' && item?.status === 'Enlevé' && (
+    {/* Chef d'agence scan button - show for Chef d'agence and Admin roles and missions with status "Enlevé" */}
+    {onChefAgenceScan && (currentUser?.role === 'Chef d\'agence' || currentUser?.role === 'Admin' || currentUser?.role === 'Administration') && item?.status === 'Enlevé' && (
       <button
         onClick={onChefAgenceScan}
         className="text-purple-600 hover:text-purple-800 p-1 rounded-full hover:bg-purple-50 transition-colors"
@@ -64,6 +64,7 @@ const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChe
         </svg>
       </button>
     )}
+
   </div>
 );
 

@@ -629,6 +629,7 @@ const Commercial = () => {
     id: "",
     name: "",
     email: "",
+    password: "",
     phone: "",
     address: "",
     title: "Commercial",
@@ -661,6 +662,7 @@ const Commercial = () => {
       id: "",
       name: "",
       email: "",
+      password: "",
       phone: "",
       address: "",
       title: "Commercial",
@@ -707,6 +709,10 @@ const Commercial = () => {
       }
       if (!formData.email.trim()) {
         alert('L\'email est requis');
+        return;
+      }
+      if (!editCommercial && !formData.password.trim()) {
+        alert('Le mot de passe est requis pour créer un nouveau commercial');
         return;
       }
 
@@ -889,6 +895,23 @@ const Commercial = () => {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 ">
+                Mot de passe {!editCommercial && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required={!editCommercial}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={editCommercial ? "Laisser vide pour ne pas changer" : "Entrez le mot de passe"}
+              />
+              {editCommercial && (
+                <p className="text-xs text-gray-500 mt-1">Laisser vide pour conserver le mot de passe actuel</p>
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 ">
                 Téléphone
