@@ -1,6 +1,6 @@
 import React from "react";
 
-const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChefAgenceScan, currentUser, item }) => (
+const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onChefAgenceScan, currentUser, item }) => (
   <div className="flex gap-2">
     {onView && (
       <button
@@ -15,7 +15,7 @@ const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChe
         </svg>
       </button>
     )}
-    {onEdit && (
+    {onEdit && item?.status !== 'À enlever' && item?.status !== 'Enlevé' && item?.status !== 'Au dépôt' && item?.status !== 'Terminé' && (
       <button
         onClick={onEdit}
         className="text-green-600 hover:text-green-800 p-1 rounded-full hover:bg-green-50 transition-colors"
@@ -27,7 +27,7 @@ const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChe
         </svg>
       </button>
     )}
-    {onDelete && (
+    {onDelete && item?.status !== 'À enlever' && item?.status !== 'Enlevé' && item?.status !== 'Au dépôt' && item?.status !== 'Terminé' && (
       <button
         onClick={onDelete}
         className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
@@ -39,18 +39,7 @@ const ActionButtons = ({ onView, onEdit, onDelete, onDeliveryNote, onScan, onChe
         </svg>
       </button>
     )}
-    {onScan && (
-      <button
-        onClick={onScan}
-        className="text-green-600 hover:text-green-800 p-1 rounded-full hover:bg-green-50 transition-colors"
-        title="Scanner les colis"
-        type="button"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z" />
-        </svg>
-      </button>
-    )}
+
     {/* Chef d'agence scan button - show for Chef d'agence and Admin roles and missions with status "Enlevé" */}
     {onChefAgenceScan && (currentUser?.role === 'Chef d\'agence' || currentUser?.role === 'Admin' || currentUser?.role === 'Administration') && item?.status === 'Enlevé' && (
       <button

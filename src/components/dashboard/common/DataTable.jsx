@@ -12,7 +12,6 @@ const DataTable = ({
   showActions = true,
   onRowClick,
   customActionButtons,
-  onScan,
   onChefAgenceScan,
   currentUser
 }) => {
@@ -85,7 +84,6 @@ const DataTable = ({
                         onView={onRowClick ? (e) => { e.stopPropagation(); onRowClick(item); } : undefined}
                         onEdit={onEdit ? (e) => { e.stopPropagation(); onEdit(item); } : undefined}
                         onDelete={onDelete ? (e) => { e.stopPropagation(); onDelete(item); } : undefined}
-                        onScan={onScan ? (e) => { e.stopPropagation(); onScan(item); } : undefined}
                         onChefAgenceScan={onChefAgenceScan ? (e) => { e.stopPropagation(); onChefAgenceScan(item); } : undefined}
 
                         currentUser={currentUser}

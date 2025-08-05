@@ -69,7 +69,7 @@ router.get('/pickup-missions', authenticateToken, async (req, res) => {
         pm.status,
         pm.created_at,
         pm.updated_at,
-        pm.security_code,
+        pm.completion_code as security_code,
         s.name as shipper_name,
         s.address as shipper_address,
         s.phone as shipper_phone,
@@ -78,7 +78,7 @@ router.get('/pickup-missions', authenticateToken, async (req, res) => {
       LEFT JOIN shippers s ON pm.shipper_id = s.id
       LEFT JOIN mission_parcels mp ON pm.id = mp.mission_id
       WHERE pm.driver_id = $1
-      GROUP BY pm.id, pm.mission_number, pm.status, pm.created_at, pm.updated_at, pm.security_code, s.name, s.address, s.phone
+      GROUP BY pm.id, pm.mission_number, pm.status, pm.created_at, pm.updated_at, pm.completion_code, s.name, s.address, s.phone
       ORDER BY pm.created_at DESC
     `, [driverId]);
     
@@ -329,9 +329,16 @@ router.post('/pickup-missions/:id/complete', authenticateToken, async (req, res)
     const { missionCode } = req.body;
     const driverId = await getDriverId(req.user.email);
 
+    console.log('🔍 Complete mission request:', {
+      missionId: id,
+      missionCode: missionCode,
+      driverId: driverId,
+      userEmail: req.user.email
+    });
+
     // Check if mission exists and is assigned to this driver
     const missionCheck = await db.query(`
-      SELECT id, status, security_code FROM pickup_missions 
+      SELECT id, status, completion_code FROM pickup_missions 
       WHERE id = $1 AND driver_id = $2
     `, [id, driverId]);
 
@@ -342,25 +349,36 @@ router.post('/pickup-missions/:id/complete', authenticateToken, async (req, res)
       });
     }
 
-    if (missionCheck.rows[0].status !== 'Enlevé') {
+    console.log('🔍 Mission check result:', missionCheck.rows[0]);
+
+    if (missionCheck.rows[0].status !== 'Enlevé' && missionCheck.rows[0].status !== 'in_progress') {
       return res.status(400).json({
         success: false,
-        message: 'Mission cannot be completed in current status'
+        message: `Mission cannot be completed in current status: ${missionCheck.rows[0].status}`
       });
     }
 
-    // Verify security code
-    if (missionCheck.rows[0].security_code !== missionCode) {
+    // Verify completion code
+    if (!missionCheck.rows[0].completion_code) {
       return res.status(400).json({
         success: false,
-        message: 'Code de mission incorrect'
+        message: 'Aucun code de finalisation généré pour cette mission'
       });
     }
 
-    // Update mission status to "Mission terminée"
+    if (missionCheck.rows[0].completion_code !== missionCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code de finalisation incorrect'
+      });
+    }
+
+    console.log('✅ Updating mission status to "Terminé"');
+    
+    // Update mission status to "Terminé"
     await db.query(`
       UPDATE pickup_missions 
-      SET status = 'Mission terminée', updated_at = CURRENT_TIMESTAMP
+      SET status = 'Terminé', updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
     `, [id]);
 
@@ -372,6 +390,19 @@ router.post('/pickup-missions/:id/complete', authenticateToken, async (req, res)
         SELECT parcel_id FROM mission_parcels WHERE mission_id = $1
       )
     `, [id]);
+
+    // Update all demands in this mission to "Completed" status
+    await db.query(`
+      UPDATE demands 
+      SET status = 'Completed', updated_at = CURRENT_TIMESTAMP
+      WHERE id IN (
+        SELECT demand_id 
+        FROM mission_demands 
+        WHERE mission_id = $1
+      )
+    `, [id]);
+
+    console.log('✅ Mission completed successfully');
 
     res.json({
       success: true,

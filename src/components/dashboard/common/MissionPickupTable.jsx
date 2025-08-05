@@ -20,7 +20,7 @@ const statusColors = {
   "Mission terminée": "bg-green-100 text-green-800",
 };
 
-const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, onChefAgenceScan, searchTerm, onSearchChange, securityCodes = {}, currentUser }) => {
+const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onChefAgenceScan, searchTerm, onSearchChange, securityCodes = {}, currentUser }) => {
   const columns = [
     { key: "mission_number", label: "N° Mission" },
     { 
@@ -90,7 +90,6 @@ const MissionPickupTable = ({ missions, onView, onEdit, onDelete, onScan, onChef
       showActions={true}
       onEdit={onEdit}
       onDelete={onDelete}
-      onScan={onScan}
       onChefAgenceScan={onChefAgenceScan}
       
       onRowClick={onView}

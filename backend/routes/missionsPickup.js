@@ -135,7 +135,8 @@ async function getFullMission(row) {
       created_by: createdBy,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      security_code: row.security_code
+      security_code: row.security_code,
+      completion_code: row.completion_code
     };
   } catch (error) {
     console.error('Error in getFullMission:', error);
@@ -158,7 +159,8 @@ async function getFullMission(row) {
         role: 'Administration'
       },
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
+      completion_code: row.completion_code
     };
   }
 }
@@ -1071,6 +1073,12 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
     const { id } = req.params;
     const { scannedParcels } = req.body;
     
+    console.log('🔍 Generate completion code request:', {
+      missionId: id,
+      scannedParcels: scannedParcels,
+      userRole: req.user.role
+    });
+    
     // Check if user has permission (Chef d'agence, Admin, or Administration)
     if (!['Chef d\'agence', 'Admin', 'Administration'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
@@ -1116,23 +1124,55 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
     `, [id]);
     
     console.log('🔍 Raw scannedParcels:', scannedParcels);
+    console.log('🔍 ScannedParcels type:', typeof scannedParcels);
+    console.log('🔍 ScannedParcels length:', scannedParcels?.length);
+    console.log('🔍 ScannedParcels structure:', JSON.stringify(scannedParcels, null, 2));
     
     // Extract parcel IDs from scanned parcels (handle both object and ID formats)
     const scannedParcelIds = scannedParcels.map(parcel => 
       typeof parcel === 'object' ? parcel.id : parcel
     );
     
-    console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
-    console.log('🔍 Total parcels in mission:', totalParcels.rows[0].total);
-    console.log('🔍 Scanned count:', scannedParcelIds.length);
-    console.log('🔍 Total count:', totalParcels.rows[0].total);
-    console.log('🔍 Counts match:', scannedParcelIds.length === totalParcels.rows[0].total);
+    const scannedCount = parseInt(scannedParcelIds.length);
+    const totalCount = parseInt(totalParcels.rows[0].total);
     
-    if (scannedParcelIds.length !== totalParcels.rows[0].total) {
+    // Verify that all scanned parcels actually exist in this mission
+    const missionParcels = await client.query(`
+      SELECT p.id, p.tracking_number
+      FROM parcels p
+      INNER JOIN mission_parcels mp ON p.id = mp.parcel_id
+      WHERE mp.mission_id = $1
+    `, [id]);
+    
+    const missionParcelIds = missionParcels.rows.map(row => row.id);
+    console.log('🔍 Mission parcel IDs:', missionParcelIds);
+    console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
+    
+    // Check if all scanned parcels exist in the mission
+    const allScannedParcelsExist = scannedParcelIds.every(id => missionParcelIds.includes(parseInt(id)));
+    console.log('🔍 All scanned parcels exist in mission:', allScannedParcelsExist);
+    
+    if (!allScannedParcelsExist) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: `All parcels must be scanned before generating completion code. Scanned: ${scannedParcelIds.length}, Total: ${totalParcels.rows[0].total}`
+        message: `Some scanned parcels do not exist in this mission. Mission parcels: ${missionParcelIds.join(', ')}, Scanned: ${scannedParcelIds.join(', ')}`
+      });
+    }
+    
+    console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
+    console.log('🔍 Total parcels in mission:', totalParcels.rows[0].total);
+    console.log('🔍 Scanned count (parsed):', scannedCount);
+    console.log('🔍 Total count (parsed):', totalCount);
+    console.log('🔍 Counts match:', scannedCount === totalCount);
+    console.log('🔍 Scanned count type:', typeof scannedCount);
+    console.log('🔍 Total count type:', typeof totalCount);
+    
+    if (scannedCount !== totalCount) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `All parcels must be scanned before generating completion code. Scanned: ${scannedCount}, Total: ${totalCount}`
       });
     }
     
@@ -1143,39 +1183,40 @@ router.post('/:id/generate-completion-code', authenticateToken, async (req, res)
       completionCode += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     
-    // Update mission with completion code and change status to "Terminé"
+    // Update mission with completion code only (don't change status yet)
     await client.query(`
       UPDATE pickup_missions 
-      SET completion_code = $1, status = 'Terminé', updated_at = CURRENT_TIMESTAMP
+      SET completion_code = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [completionCode, id]);
     
-    // Update all demands in this mission to "Completed" status
-    await client.query(`
-      UPDATE demands 
-      SET status = 'Completed', updated_at = CURRENT_TIMESTAMP
-      WHERE id IN (
-        SELECT demand_id 
-        FROM mission_demands 
-        WHERE mission_id = $1
-      )
-    `, [id]);
+    // Don't update demands status yet - wait for driver to complete mission
     
     await client.query('COMMIT');
     
     res.json({
       success: true,
-      message: 'Mission completed successfully',
-      security_code: securityCode,
+      message: 'Code de finalisation généré avec succès',
       completion_code: completionCode
     });
     
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Generate completion code error:', error);
+    console.error('Error stack:', error.stack);
+    
+    let errorMessage = 'Failed to generate completion code';
+    if (error.code === '23505') { // Unique constraint violation
+      errorMessage = 'Completion code already exists for this mission';
+    } else if (error.code === '23503') { // Foreign key violation
+      errorMessage = 'Invalid mission or parcel reference';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to generate completion code'
+      message: errorMessage
     });
   } finally {
     client.release();

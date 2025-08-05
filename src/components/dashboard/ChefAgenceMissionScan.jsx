@@ -11,10 +11,43 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
   // Get saved scanned parcels from localStorage
   const getSavedScannedParcels = () => {
     const saved = localStorage.getItem(`chef_agence_scanned_parcels_mission_${mission?.id}`);
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Remove duplicates based on tracking_number, id, and client_code
+      const uniqueParcels = [];
+      const seen = new Set();
+      
+      parsed.forEach(parcel => {
+        const key = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueParcels.push(parcel);
+        }
+      });
+      
+      return uniqueParcels;
+    }
+    return [];
   };
 
   const [scannedParcels, setScannedParcels] = useState(getSavedScannedParcels());
+
+  // Debug: Log the initial scanned parcels and clear duplicates if found
+  useEffect(() => {
+    console.log('🔍 Initial scanned parcels:', scannedParcels);
+    console.log('🔍 Mission data:', mission);
+    
+    // Check for duplicates in scanned parcels
+    const trackingNumbers = scannedParcels.map(sp => sp.tracking_number);
+    const duplicates = trackingNumbers.filter((item, index) => trackingNumbers.indexOf(item) !== index);
+    
+    if (duplicates.length > 0) {
+      console.log('🔍 Found duplicates:', duplicates);
+      // Clear localStorage and reset state
+      localStorage.removeItem(`chef_agence_scanned_parcels_mission_${mission?.id}`);
+      setScannedParcels([]);
+    }
+  }, []);
 
   // Save scanned parcels to localStorage
   const saveScannedParcels = (parcels) => {
@@ -23,12 +56,14 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
 
   // Auto-detect already scanned parcels when component loads
   useEffect(() => {
-    if (mission) {
+    if (mission && scannedParcels.length === 0) {
       const alreadyScannedParcels = [];
+      const processedParcelKeys = new Set(); // Track processed parcels to avoid duplicates
       
       // Check direct mission parcels
       mission.parcels?.forEach(parcel => {
-        if (parcel.status === 'Au dépôt') {
+        const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+        if (parcel.status === 'Au dépôt' && !processedParcelKeys.has(parcelKey)) {
           alreadyScannedParcels.push({
             ...parcel,
             demand_id: null,
@@ -36,13 +71,15 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
             scanned_at: new Date().toISOString(),
             status: 'Au dépôt'
           });
+          processedParcelKeys.add(parcelKey);
         }
       });
       
       // Check demand parcels
       mission.demands?.forEach(demand => {
         demand.parcels?.forEach(parcel => {
-          if (parcel.status === 'Au dépôt') {
+          const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+          if (parcel.status === 'Au dépôt' && !processedParcelKeys.has(parcelKey)) {
             alreadyScannedParcels.push({
               ...parcel,
               demand_id: demand.id,
@@ -50,17 +87,18 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
               scanned_at: new Date().toISOString(),
               status: 'Au dépôt'
             });
+            processedParcelKeys.add(parcelKey);
           }
         });
       });
       
-      if (alreadyScannedParcels.length > 0 && scannedParcels.length === 0) {
+      if (alreadyScannedParcels.length > 0) {
         console.log('🔍 Auto-detected already scanned parcels:', alreadyScannedParcels);
         setScannedParcels(alreadyScannedParcels);
         saveScannedParcels(alreadyScannedParcels);
       }
     }
-  }, [mission, scannedParcels.length]);
+  }, [mission]); // Only run when mission changes
 
   useEffect(() => {
     if (scanning) {
@@ -100,8 +138,14 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
   const handleScan = async (decodedText) => {
     console.log('🔍 Scanned code:', decodedText);
     
-    // Check if already scanned
-    if (scannedParcels.some(sp => sp.tracking_number === decodedText)) {
+    // Check if already scanned (check by tracking_number, id, or client_code)
+    const alreadyScanned = scannedParcels.some(sp => 
+      sp.tracking_number === decodedText ||
+      sp.id.toString() === decodedText ||
+      sp.client_code === decodedText
+    );
+    
+    if (alreadyScanned) {
       setScanMessage("❌ Ce colis a déjà été scanné");
       setTimeout(() => setScanMessage(""), 3000);
       return;
@@ -172,14 +216,30 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
 
   const handleManualAdd = (e) => {
     e.preventDefault();
-    if (manualCode && !scannedParcels.some(sp => sp.tracking_number === manualCode)) {
-      handleScan(manualCode);
-      setManualCode("");
+    if (manualCode) {
+      // Check if already scanned (check by tracking_number, id, or client_code)
+      const alreadyScanned = scannedParcels.some(sp => 
+        sp.tracking_number === manualCode ||
+        sp.id.toString() === manualCode ||
+        sp.client_code === manualCode
+      );
+      
+      if (!alreadyScanned) {
+        handleScan(manualCode);
+        setManualCode("");
+      } else {
+        setScanMessage("❌ Ce colis a déjà été scanné");
+        setTimeout(() => setScanMessage(""), 3000);
+      }
     }
   };
 
   const handleRemove = (trackingNumber) => {
-    const updatedScannedParcels = scannedParcels.filter(sp => sp.tracking_number !== trackingNumber);
+    const updatedScannedParcels = scannedParcels.filter(sp => 
+      sp.tracking_number !== trackingNumber &&
+      sp.id.toString() !== trackingNumber &&
+      sp.client_code !== trackingNumber
+    );
     setScannedParcels(updatedScannedParcels);
     saveScannedParcels(updatedScannedParcels);
   };
@@ -191,17 +251,58 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     }
   };
 
-  // Calculate total parcels from both direct mission parcels and demand parcels
+  // Clear localStorage when component unmounts
+  useEffect(() => {
+    return () => {
+      // Don't clear on unmount, let it persist for the session
+    };
+  }, []);
+
+  // Calculate total parcels from both direct mission parcels and demand parcels (with deduplication)
   const directParcels = mission.parcels || [];
   const demandParcels = mission.demands?.reduce((total, demand) => {
     return total + (demand.parcels?.length || 0);
   }, 0) || 0;
-  const totalParcels = directParcels.length + demandParcels;
+  
+  // Calculate unique total using the same deduplication logic
+  const uniqueParcelKeys = new Set();
+  
+  // Add direct mission parcels
+  directParcels.forEach(parcel => {
+    const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+    uniqueParcelKeys.add(parcelKey);
+  });
+  
+  // Add demand parcels
+  mission.demands?.forEach(demand => {
+    demand.parcels?.forEach(parcel => {
+      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      uniqueParcelKeys.add(parcelKey);
+    });
+  });
+  
+  const totalParcels = uniqueParcelKeys.size;
+
+  // Debug: Log parcel counts
+  console.log('🔍 Parcel Count Debug:', {
+    directParcelsCount: directParcels.length,
+    demandParcelsCount: demandParcels,
+    uniqueParcelKeysCount: uniqueParcelKeys.size,
+    totalParcels,
+    scannedParcelsCount: scannedParcels.length,
+    mission: {
+      id: mission?.id,
+      parcels: mission?.parcels?.length,
+      demands: mission?.demands?.length,
+      demandsParcels: mission?.demands?.map(d => d.parcels?.length)
+    }
+  });
 
   const progressPercentage = totalParcels > 0 ? (scannedParcels.length / totalParcels) * 100 : 0;
 
   // Group parcels by shipper for better display
   const parcelsByShipper = {};
+  const processedParcelIds = new Set(); // Track processed parcels to avoid duplicates
   
   // Add direct mission parcels first
   if (directParcels.length > 0) {
@@ -209,18 +310,27 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     parcelsByShipper[shipperName] = {
       demand_id: null,
       parcels: [],
-      total: directParcels.length,
+      total: 0,
       scanned: 0
     };
     
     directParcels.forEach(parcel => {
-      const isScanned = scannedParcels.some(sp => sp.tracking_number === parcel.tracking_number);
-      parcelsByShipper[shipperName].parcels.push({
-        ...parcel,
-        isScanned
-      });
-      if (isScanned) {
-        parcelsByShipper[shipperName].scanned++;
+      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      if (!processedParcelIds.has(parcelKey)) {
+        const isScanned = scannedParcels.some(sp => 
+          sp.tracking_number === parcel.tracking_number ||
+          sp.id === parcel.id ||
+          sp.client_code === parcel.client_code
+        );
+        parcelsByShipper[shipperName].parcels.push({
+          ...parcel,
+          isScanned
+        });
+        if (isScanned) {
+          parcelsByShipper[shipperName].scanned++;
+        }
+        parcelsByShipper[shipperName].total++;
+        processedParcelIds.add(parcelKey);
       }
     });
   }
@@ -232,19 +342,28 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
       parcelsByShipper[shipperName] = {
         demand_id: demand.id,
         parcels: [],
-        total: demand.parcels?.length || 0,
+        total: 0,
         scanned: 0
       };
     }
     
     demand.parcels?.forEach(parcel => {
-      const isScanned = scannedParcels.some(sp => sp.tracking_number === parcel.tracking_number);
-      parcelsByShipper[shipperName].parcels.push({
-        ...parcel,
-        isScanned
-      });
-      if (isScanned) {
-        parcelsByShipper[shipperName].scanned++;
+      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      if (!processedParcelIds.has(parcelKey)) {
+        const isScanned = scannedParcels.some(sp => 
+          sp.tracking_number === parcel.tracking_number ||
+          sp.id === parcel.id ||
+          sp.client_code === parcel.client_code
+        );
+        parcelsByShipper[shipperName].parcels.push({
+          ...parcel,
+          isScanned
+        });
+        if (isScanned) {
+          parcelsByShipper[shipperName].scanned++;
+        }
+        parcelsByShipper[shipperName].total++;
+        processedParcelIds.add(parcelKey);
       }
     });
   });
@@ -274,6 +393,9 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
               <div>
                 <span className="font-semibold">📦 Total Colis:</span>
                 <div className="text-blue-100">{totalParcels}</div>
+                <div className="text-xs text-blue-200">
+                  Direct: {directParcels.length} | Demand: {demandParcels}
+                </div>
               </div>
             </div>
           </div>
@@ -341,6 +463,19 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
             }`}
           >
             {scanning ? '🛑 Arrêter le scan' : '📷 Scanner avec caméra'}
+          </button>
+          
+          {/* Debug button to clear localStorage */}
+          <button
+            onClick={() => {
+              localStorage.removeItem(`chef_agence_scanned_parcels_mission_${mission?.id}`);
+              setScannedParcels([]);
+              alert('LocalStorage cleared!');
+            }}
+            className="px-4 py-3 rounded-lg font-semibold text-white bg-orange-600 hover:bg-orange-700 shadow-lg"
+            title="Clear localStorage for debugging"
+          >
+            🧹 Clear Data
           </button>
         </div>
 

@@ -71,6 +71,17 @@ const Pickup = () => {
   const [filteredDrivers, setFilteredDrivers] = useState([]);
   const [filteredAcceptedMissions, setFilteredAcceptedMissions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // Dashboard stats state
+  const [stats, setStats] = useState({
+    totalMissions: 0,
+    pendingMissions: 0,
+    completedMissions: 0,
+    rejectedMissions: 0
+  });
+  
+  // Dashboard filter state
+  const [statusFilter, setStatusFilter] = useState(null);
 
   // Load data from API
   useEffect(() => {
@@ -114,6 +125,9 @@ const Pickup = () => {
         setDrivers(driversData);
         setAcceptedMissions(acceptedDemandsData || []);
         
+        // Calculate dashboard stats
+        calculateStats(missions);
+        
         // Initialize filtered drivers based on user role
         filterDriversByRole(driversData, user);
         
@@ -149,6 +163,13 @@ const Pickup = () => {
     };
     fetchAll();
   }, []);
+
+  // Recalculate stats whenever missions change
+  useEffect(() => {
+    if (missions.length > 0) {
+      calculateStats(missions);
+    }
+  }, [missions]);
 
   // Filter drivers based on user role and agency
   const filterDriversByRole = (driversData, user) => {
@@ -192,6 +213,58 @@ const Pickup = () => {
     } else {
       setFilteredAcceptedMissions(missionsData);
     }
+  };
+
+  // Calculate dashboard statistics
+  const calculateStats = (missionsData) => {
+    if (!missionsData || missionsData.length === 0) {
+      setStats({
+        totalMissions: 0,
+        pendingMissions: 0,
+        completedMissions: 0,
+        rejectedMissions: 0
+      });
+      return;
+    }
+
+    const total = missionsData.length;
+    const pending = missionsData.filter(m => m.status === 'En attente').length;
+    const completed = missionsData.filter(m => m.status === 'Terminé').length;
+    const rejected = missionsData.filter(m => m.status === 'Refusé par livreur').length;
+
+    console.log('📊 Dashboard stats calculated:', {
+      total,
+      pending,
+      completed,
+      rejected,
+      allStatuses: missionsData.map(m => m.status)
+    });
+
+    setStats({
+      totalMissions: total,
+      pendingMissions: pending,
+      completedMissions: completed,
+      rejectedMissions: rejected
+    });
+  };
+
+  // Handle dashboard card clicks
+  const handleDashboardCardClick = (status) => {
+    if (statusFilter === status) {
+      // If clicking the same card, clear the filter
+      setStatusFilter(null);
+    } else {
+      // Set the new filter
+      setStatusFilter(status);
+    }
+  };
+
+  // Get filtered missions based on status filter
+  const getFilteredMissions = () => {
+    if (!statusFilter) {
+      return missions;
+    }
+    return missions.filter(mission => mission.status === statusFilter);
   };
 
   // Wizard helper functions
@@ -312,7 +385,10 @@ const Pickup = () => {
     if (window.confirm("Supprimer cette mission ?")) {
       try {
         await missionsPickupService.deleteMissionPickup(mission.id);
-        setMissions(missions.filter(m => m.id !== mission.id));
+        const updatedMissions = missions.filter(m => m.id !== mission.id);
+        setMissions(updatedMissions);
+        // Recalculate stats
+        calculateStats(updatedMissions);
       } catch (err) {
         alert("Erreur lors de la suppression de la mission.");
       }
@@ -352,11 +428,17 @@ const Pickup = () => {
       try {
         const fullMissionResponse = await missionsPickupService.getMissionPickup(createdMission.id);
         const fullMission = fullMissionResponse.data || fullMissionResponse;
-        setMissions(prev => [fullMission, ...prev]);
+        const updatedMissions = [fullMission, ...missions];
+        setMissions(updatedMissions);
+        // Recalculate stats
+        calculateStats(updatedMissions);
       } catch (error) {
         console.error('Error fetching full mission details:', error);
         // Fallback to the basic mission data
-        setMissions(prev => [createdMission, ...prev]);
+        const updatedMissions = [createdMission, ...missions];
+        setMissions(updatedMissions);
+        // Recalculate stats
+        calculateStats(updatedMissions);
       }
       
       // Show success message with mission code
@@ -489,22 +571,29 @@ const Pickup = () => {
       console.log('🔍 Generating completion code for mission:', chefAgenceScanningMission.id);
       console.log('🔍 Scanned parcels:', scannedParcels);
       
-      // Extract just the parcel IDs from the scanned parcels
-      const scannedParcelIds = scannedParcels.map(parcel => parcel.id);
-      console.log('🔍 Scanned parcel IDs:', scannedParcelIds);
+      const response = await apiService.generateCompletionCode(chefAgenceScanningMission.id, scannedParcels);
       
-      const response = await apiService.generateCompletionCode(chefAgenceScanningMission.id, scannedParcelIds);
-      
-      if (response.success) {
-        alert(`Code de finalisation généré: ${response.completion_code}`);
+      if (response.data?.success || response.success) {
+        const completionCode = response.data?.completion_code || response.completion_code;
+        alert(`Code de finalisation généré: ${completionCode}`);
         setIsChefAgenceScanModalOpen(false);
         fetchAll(); // Refresh data
       } else {
-        alert('Erreur lors de la génération du code');
+        const errorMessage = response.data?.message || response.message || 'Erreur lors de la génération du code';
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('❌ Error generating completion code:', error);
-      alert('Erreur lors de la génération du code de finalisation');
+      console.error('❌ Error response:', error.response?.data);
+      
+      let errorMessage = 'Erreur lors de la génération du code de finalisation';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -555,13 +644,146 @@ const Pickup = () => {
         </button>
       </div>
 
+      {/* Dashboard Stats - Only for Admin and Chef d'agence */}
+      {(currentUser?.role === 'Admin' || currentUser?.role === 'Administration' || currentUser?.role === 'Chef d\'agence') && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Tableau de Bord - Missions de Collecte</h2>
+            {statusFilter && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">Filtre actif:</span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                  {statusFilter}
+                </span>
+                <button
+                  onClick={() => setStatusFilter(null)}
+                  className="text-gray-400 hover:text-gray-600 text-sm"
+                  title="Effacer le filtre"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Total Missions */}
+            <div 
+              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:scale-105 ${
+                statusFilter === null 
+                  ? 'bg-blue-100 border-blue-300 shadow-md' 
+                  : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+              }`}
+              onClick={() => handleDashboardCardClick(null)}
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-blue-600">Total Missions</p>
+                  <p className="text-2xl font-bold text-blue-900">{stats.totalMissions}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pending Missions */}
+            <div 
+              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:scale-105 ${
+                statusFilter === 'En attente' 
+                  ? 'bg-yellow-100 border-yellow-300 shadow-md' 
+                  : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+              }`}
+              onClick={() => handleDashboardCardClick('En attente')}
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-yellow-600">En Attente</p>
+                  <p className="text-2xl font-bold text-yellow-900">{stats.pendingMissions}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Completed Missions */}
+            <div 
+              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:scale-105 ${
+                statusFilter === 'Terminé' 
+                  ? 'bg-green-100 border-green-300 shadow-md' 
+                  : 'bg-green-50 border-green-200 hover:bg-green-100'
+              }`}
+              onClick={() => handleDashboardCardClick('Terminé')}
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-green-600">Terminées</p>
+                  <p className="text-2xl font-bold text-green-900">{stats.completedMissions}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rejected Missions */}
+            <div 
+              className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:scale-105 ${
+                statusFilter === 'Refusé par livreur' 
+                  ? 'bg-red-100 border-red-300 shadow-md' 
+                  : 'bg-red-50 border-red-200 hover:bg-red-100'
+              }`}
+              onClick={() => handleDashboardCardClick('Refusé par livreur')}
+            >
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-red-600">Rejetées</p>
+                  <p className="text-2xl font-bold text-red-900">{stats.rejectedMissions}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tableau des missions */}
+      {statusFilter && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-blue-800">
+                Affichage des missions avec le statut: <span className="font-bold">{statusFilter}</span>
+              </span>
+              <span className="px-2 py-1 bg-blue-200 text-blue-800 rounded-full text-xs font-medium">
+                {getFilteredMissions().length} mission{getFilteredMissions().length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setStatusFilter(null)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Voir toutes les missions
+            </button>
+          </div>
+        </div>
+      )}
+      
       <MissionPickupTable
-        missions={missions}
+        missions={getFilteredMissions()}
         onView={setViewMission}
         onEdit={() => {}} // Disabled for now
         onDelete={handleDelete}
-        onScan={handleStartPickupScanning}
         onChefAgenceScan={handleStartChefAgenceScanning}
 
         searchTerm={searchTerm}
@@ -1012,16 +1234,6 @@ const Pickup = () => {
               Debug: User role: {currentUser?.role}, Mission status: {viewMission.status}, Driver: {viewMission.driver?.name || 'None'}
             </div>
             <div className="flex space-x-2">
-            {/* Scan Button - Always show for testing */}
-            <button
-              onClick={() => handleStartPickupScanning(viewMission)}
-              className="bg-gradient-to-r from-green-500 to-green-700 text-white px-4 py-2 rounded-lg font-semibold shadow hover:scale-105 transition-transform flex items-center space-x-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z" />
-              </svg>
-              Scanner
-            </button>
             <button
               onClick={handleExportPDF}
               className="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow hover:scale-105 transition-transform flex items-center space-x-2"

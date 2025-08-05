@@ -10,7 +10,8 @@ const statusBadge = (status) => {
     "Enlevé": "bg-green-100 text-green-800 border-green-300",
     "Au dépôt": "bg-purple-100 text-purple-800 border-purple-300",
     "Refusé par livreur": "bg-red-100 text-red-800 border-red-300",
-    "Mission terminée": "bg-gray-100 text-gray-800 border-gray-300"
+    "Terminé": "bg-gray-100 text-gray-800 border-gray-300",
+    "Mission terminée": "bg-gray-100 text-gray-800 border-gray-300" // Keep for backward compatibility
   };
   
   return (
@@ -58,11 +59,22 @@ const LivreurPickupMissions = () => {
       console.log('📦 API Response:', response);
       setMissions(response.missions || []);
       
+      // Debug: Log all mission statuses
+      console.log('🔍 Mission statuses:', response.missions?.map(m => ({ id: m.id, status: m.status })));
+      
       // Calculate stats
       const total = response.missions?.length || 0;
       const accepted = response.missions?.filter(m => m.status === 'À enlever' || m.status === 'Enlevé' || m.status === 'Au dépôt').length || 0;
       const refused = response.missions?.filter(m => m.status === 'Refusé par livreur').length || 0;
-      const completed = response.missions?.filter(m => m.status === 'Mission terminée').length || 0;
+      const completed = response.missions?.filter(m => m.status === 'Terminé').length || 0;
+      
+      console.log('📊 Stats calculation:', {
+        total,
+        accepted,
+        refused,
+        completed,
+        allStatuses: response.missions?.map(m => m.status)
+      });
       
       setStats({
         totalMissions: total,
@@ -161,8 +173,16 @@ const LivreurPickupMissions = () => {
       alert('Mission terminée avec succès!');
     } catch (error) {
       console.error('Complete mission error:', error);
+      console.error('Error response:', error.response?.data);
+      
       if (error.response?.status !== 401) {
-        alert('Code incorrect ou erreur lors de la finalisation');
+        let errorMessage = 'Code incorrect ou erreur lors de la finalisation';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        alert(errorMessage);
       }
     }
   };
@@ -471,18 +491,23 @@ const LivreurPickupMissions = () => {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Veuillez entrer le code de mission pour finaliser la collecte.
+            Veuillez entrer le code de finalisation pour terminer la mission.
           </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              💡 <strong>Note:</strong> Le code de finalisation est généré par le Chef d'agence après le scan des colis au dépôt.
+            </p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Code de Mission
+              Code de Finalisation
             </label>
             <input
               type="text"
               value={missionCode}
               onChange={(e) => setMissionCode(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Entrez le code de mission..."
+              placeholder="Entrez le code de finalisation..."
             />
           </div>
           <div className="flex justify-end space-x-3">
