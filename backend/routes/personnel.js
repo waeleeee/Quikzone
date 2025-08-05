@@ -194,10 +194,10 @@ router.post('/agency-managers', async (req, res) => {
       });
       
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Chef d\'agence']);
       
       const userId = userResult.rows[0].id;
       console.log('✅ User account created with ID:', userId);
@@ -564,10 +564,10 @@ router.post('/agency-members', async (req, res) => {
       });
       
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Membre de l\'agence']);
       
       const userId = userResult.rows[0].id;
       console.log('✅ User account created with ID:', userId);
@@ -898,10 +898,10 @@ router.post('/administrators', async (req, res) => {
       
       // Create user in users table
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Administration']);
       
       const userId = userResult.rows[0].id;
       
@@ -1194,10 +1194,10 @@ router.post('/commercials', async (req, res) => {
       
       // Create user in users table
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Commercial']);
       
       const userId = userResult.rows[0].id;
       
@@ -1247,7 +1247,7 @@ router.post('/commercials', async (req, res) => {
   }
 });
 
-// Update commercial
+// Update commercial (user with Commercial role)
 router.put('/commercials/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1261,34 +1261,55 @@ router.put('/commercials/:id', async (req, res) => {
       passwordLength: password?.length
     });
     
+    // Check if user exists and has Commercial role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = 'Commercial' AND u.is_active = true
+    `, [id]);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Commercial not found or does not have Commercial role'
+      });
+    }
+    
+    const user = userCheck.rows[0];
+    
     // Start transaction
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
       
-      // Build dynamic query for commercials table
-      let commercialQuery = `
-        UPDATE commercials 
-        SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, title = $6, updated_at = CURRENT_TIMESTAMP
+      // Split name into first_name and last_name
+      const nameParts = name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Build update query for users table
+      let userQuery = `
+        UPDATE users 
+        SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
       `;
-      let commercialParams = [name, email, phone, governorate, address, title];
+      let userParams = [firstName, lastName, phone];
       
       // Add password update if provided
       if (password && password.trim()) {
         console.log('🔐 Updating password for commercial');
         const hashedPassword = await bcrypt.hash(password, 10);
-        commercialQuery += `, password = $${commercialParams.length + 1}`;
-        commercialParams.push(hashedPassword);
-      } else {
-        console.log('⚠️ No password provided for update');
+        userQuery += `, password_hash = $${userParams.length + 1}`;
+        userParams.push(hashedPassword);
       }
       
-      commercialQuery += ` WHERE id = $${commercialParams.length + 1} RETURNING id, name, email, phone, governorate, address, title, updated_at`;
-      commercialParams.push(id);
+      userQuery += ` WHERE id = $${userParams.length + 1} RETURNING id, first_name, last_name, email, phone, updated_at`;
+      userParams.push(id);
       
-      const commercialResult = await client.query(commercialQuery, commercialParams);
+      const result = await client.query(userQuery, userParams);
       
-      if (commercialResult.rows.length === 0) {
+      if (result.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({
           success: false,
@@ -1296,38 +1317,17 @@ router.put('/commercials/:id', async (req, res) => {
         });
       }
       
-      // Update corresponding user account if password is provided
-      if (password && password.trim()) {
-        console.log('🔐 Updating user account password for:', email);
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        const userUpdateResult = await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, password_hash = $4, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $5
-          RETURNING id
-        `, [firstName, lastName, phone, hashedPassword, email]);
-        
-        if (userUpdateResult.rows.length > 0) {
-          console.log('✅ User account password updated successfully');
-        } else {
-          console.log('⚠️ No user account found for email:', email);
-        }
-      } else {
-        // Update user info without password
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $4
-        `, [firstName, lastName, phone, email]);
-      }
-      
       await client.query('COMMIT');
+      
+      // Return the updated user data
+      const updatedUser = result.rows[0];
+      updatedUser.name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      updatedUser.role = 'Commercial';
+      updatedUser.title = title || 'Commercial';
+      updatedUser.clients_count = 0;
+      updatedUser.shipments_received = 0;
+      updatedUser.governorate = governorate || 'Tunis';
+      updatedUser.address = address || '';
       
       const message = password && password.trim() 
         ? 'Commercial updated successfully. Password has been changed and the user can now log in with the new password.'
@@ -1335,7 +1335,7 @@ router.put('/commercials/:id', async (req, res) => {
         
       res.json({
         success: true,
-        data: commercialResult.rows[0],
+        data: updatedUser,
         message: message
       });
       
@@ -1355,57 +1355,55 @@ router.put('/commercials/:id', async (req, res) => {
   }
 });
 
-// Delete commercial
+// Delete commercial (remove Commercial role from user)
 router.delete('/commercials/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Get commercial email before deletion
-    const commercialResult = await db.query(`
-      SELECT email FROM commercials WHERE id = $1
+
+    // Check if user exists and has Commercial role
+    const userCheck = await db.query(`
+      SELECT u.id, u.email, u.first_name, u.last_name
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur.user_id
+      INNER JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = $1 AND r.name = 'Commercial' AND u.is_active = true
     `, [id]);
     
-    if (commercialResult.rows.length === 0) {
+    if (userCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Commercial not found'
+        message: 'Commercial not found or does not have Commercial role'
       });
     }
-    
-    const email = commercialResult.rows[0].email;
-    
-    // Start transaction
-    const client = await db.pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Delete commercial record
-      await client.query(`
-        DELETE FROM commercials 
-        WHERE id = $1
-      `, [id]);
-      
-      // Deactivate corresponding user account (don't delete to preserve history)
-      await client.query(`
-        UPDATE users 
-        SET is_active = false, updated_at = CURRENT_TIMESTAMP
-        WHERE email = $1
-      `, [email]);
-      
-      await client.query('COMMIT');
-      
-      res.json({
-        success: true,
-        message: 'Commercial deleted successfully'
+
+    // Get Commercial role ID
+    const roleResult = await db.query('SELECT id FROM roles WHERE name = $1', ['Commercial']);
+    if (roleResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Commercial role not found in database'
       });
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
-    
+    const roleId = roleResult.rows[0].id;
+
+    // Remove Commercial role from user
+    const result = await db.query(`
+      DELETE FROM user_roles 
+      WHERE user_id = $1 AND role_id = $2
+      RETURNING user_id
+    `, [id, roleId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Commercial role assignment not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Commercial deleted successfully'
+    });
   } catch (error) {
     console.error('Delete commercial error:', error);
     res.status(500).json({
@@ -1863,10 +1861,10 @@ router.post('/accountants', async (req, res) => {
       });
       
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true]);
+      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Finance']);
       
       const userId = userResult.rows[0].id;
       console.log('✅ User account created with ID:', userId);

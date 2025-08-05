@@ -302,10 +302,10 @@ router.post('/', upload.fields([
       
       // Create user account
       const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-        VALUES ($1, $2, $3, $4, $5, true)
+        INSERT INTO users (username, email, password_hash, first_name, last_name, is_active, role)
+        VALUES ($1, $2, $3, $4, $5, true, $6)
         RETURNING id
-      `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
+      `, [uniqueUsername, email, hashedPassword, firstName, lastName, 'Expéditeur']);
       
       // Assign "Expéditeur" role
       const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Expéditeur']);
@@ -634,10 +634,10 @@ router.put('/:id', upload.fields([
           }
 
           const userResult = await client.query(`
-            INSERT INTO users (username, email, password_hash, first_name, last_name, is_active)
-            VALUES ($1, $2, $3, $4, $5, true)
+            INSERT INTO users (username, email, password_hash, first_name, last_name, is_active, role)
+            VALUES ($1, $2, $3, $4, $5, true, $6)
             RETURNING id
-          `, [uniqueUsername, email, hashedPassword, firstName, lastName]);
+          `, [uniqueUsername, email, hashedPassword, firstName, lastName, 'Expéditeur']);
 
           // Assign "Expéditeur" role
           const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Expéditeur']);

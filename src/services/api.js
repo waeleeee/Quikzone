@@ -1014,7 +1014,13 @@ export const apiService = {
   getCommercials: async () => {
     try {
       const response = await api.get('/personnel/commercials');
-      return response.data || [];
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        return response.data;
+      } else {
+        return [];
+      }
     } catch (error) {
       console.error('Get commercials error:', error);
       return [];
@@ -1057,7 +1063,13 @@ export const apiService = {
   getAdministrators: async () => {
     try {
       const response = await api.get('/personnel/administrators');
-      return response.data || [];
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        return response.data;
+      } else {
+        return [];
+      }
     } catch (error) {
       console.error('Get administrators error:', error);
       return [];
@@ -1271,10 +1283,16 @@ export const apiService = {
       const response = await api.get('/personnel/accountants');
       console.log('🔍 Raw response from accountants API:', response);
       console.log('📊 Response data:', response.data);
-      console.log('📋 Data array:', response.data);
-      const result = response.data || [];
-      console.log('📋 Final result:', result);
-      return result;
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        console.log('📋 Data array from response.data.data:', response.data.data);
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        console.log('📋 Data array from response.data:', response.data);
+        return response.data;
+      } else {
+        console.log('📋 No data found, returning empty array');
+        return [];
+      }
     } catch (error) {
       console.error('❌ Get comptables error:', error);
       console.error('❌ Error details:', error.response?.data);
@@ -1316,7 +1334,13 @@ export const apiService = {
   getAgencyMembers: async () => {
     try {
       const response = await api.get('/personnel/agency-members');
-      return response.data;
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        return response.data;
+      } else {
+        return [];
+      }
     } catch (error) {
       console.error('Get agency members error:', error);
       return [];
@@ -1406,9 +1430,13 @@ export const apiService = {
     try {
       const response = await api.get('/personnel/agency-managers');
       console.log('Agency managers response:', response);
-      // The backend returns { success: true, data: [...], pagination: {...} }
-      // We need to return just the data array
-      return response.data?.data || response.data || [];
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        return response.data;
+      } else {
+        return [];
+      }
     } catch (error) {
       console.error('Get agency managers error:', error);
       return [];
@@ -1864,6 +1892,30 @@ export const warehousesService = {
     } catch (error) {
       console.error('❌ Warehouse details API error:', error);
       return { success: false, data: null };
+    }
+  },
+
+  getAgencyWarehouseDetails: async (agency) => {
+    try {
+      console.log('🔍 Calling agency warehouse details API for agency:', agency);
+      const response = await api.get(`/warehouses/agency/${encodeURIComponent(agency)}`);
+      console.log('📡 Agency warehouse details API response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Agency warehouse details API error:', error);
+      return { success: false, data: null };
+    }
+  },
+
+  getAvailableManagers: async () => {
+    try {
+      console.log('🔍 Calling available managers API...');
+      const response = await api.get('/warehouses/available-managers');
+      console.log('📡 Available managers API response:', response);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Available managers API error:', error);
+      return { success: false, data: [] };
     }
   },
 

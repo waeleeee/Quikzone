@@ -292,21 +292,27 @@ const Entrepots = () => {
 
   const fetchChefAgences = async () => {
     try {
-      console.log('🔍 Fetching Chef d\'agence users...');
-      const response = await fetch('http://localhost:5000/api/personnel/users?role=Chef d\'agence');
-      const data = await response.json();
+      console.log('🔍 Fetching available Chef d\'agence users...');
+      const { warehousesService } = await import('../../services/api');
+      const response = await warehousesService.getAvailableManagers();
       
-      if (data.success && data.data) {
-        const chefAgencesList = data.data.map(user => ({
+      if (response.success && response.data) {
+        const availableManagers = response.data.map(user => ({
           id: user.id,
-          name: `${user.first_name} ${user.last_name}`,
-          email: user.email
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          status: user.status
         }));
-        setChefAgences(chefAgencesList);
-        console.log('✅ Chef d\'agence users loaded:', chefAgencesList);
+        setChefAgences(availableManagers);
+        console.log('✅ Available Chef d\'agence users loaded:', availableManagers);
+      } else {
+        console.warn('⚠️ No available managers found or API error');
+        setChefAgences([]);
       }
     } catch (error) {
-      console.error('❌ Error fetching Chef d\'agence users:', error);
+      console.error('❌ Error fetching available Chef d\'agence users:', error);
+      setChefAgences([]);
     }
   };
 
@@ -607,6 +613,9 @@ const Entrepots = () => {
       status: "Actif",
     });
     setIsModalOpen(true);
+    
+    // Refresh available managers when opening the modal
+    await fetchChefAgences();
   };
 
   const handleEdit = (warehouse) => {
@@ -639,9 +648,35 @@ const Entrepots = () => {
 
   const handleViewDetails = async (warehouse) => {
     setSelectedWarehouse(warehouse);
-    // Always fetch detailed information when viewing a warehouse
-    console.log('🔍 Fetching details for warehouse:', warehouse.id);
-    await fetchWarehouseDetails(warehouse.id);
+    
+    try {
+      if (currentUser && currentUser.role === 'Chef d\'agence') {
+        // For Chef d'agence, fetch agency-specific warehouse details
+        console.log('🔍 Fetching agency warehouse details for:', userAgency);
+        const response = await warehousesService.getAgencyWarehouseDetails(userAgency);
+        
+        if (response.success && response.data) {
+          console.log('📦 Agency warehouse details received:', response.data);
+          setSelectedWarehouse(response.data);
+          
+          // Update agency parcels and stats
+          await fetchWarehouseAgencyParcels(response.data);
+          await fetchAgencyUsers(response.data);
+        } else {
+          console.warn('⚠️ No agency warehouse details found for:', userAgency);
+          // Fallback to basic warehouse info
+          setSelectedWarehouse(warehouse);
+        }
+      } else {
+        // For Admin, fetch detailed information for the specific warehouse
+        console.log('🔍 Fetching details for warehouse:', warehouse.id);
+        await fetchWarehouseDetails(warehouse.id);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching warehouse details:', error);
+      // Fallback to basic warehouse info
+      setSelectedWarehouse(warehouse);
+    }
   };
 
   const handleSubmit = async () => {
@@ -829,21 +864,28 @@ const Entrepots = () => {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Téléphone</th>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-            <th className="px-6 py-3  text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'entrée</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Téléphone</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Colis traités</th>
+            <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {users && users.length > 0 ? users.map((user) => (
-            <tr key={user.id}>
+            <tr key={user.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  user.role === 'Chef d\'agence' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                }`}>
+                  {user.role || 'Membre de l\'agence'}
+                </span>
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.phone || "Non renseigné"}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                   user.status === "Actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
@@ -851,13 +893,19 @@ const Entrepots = () => {
                   {user.status}
                 </span>
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.packages_processed || 0}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {user.entry_date ? new Date(user.entry_date).toLocaleDateString('fr-FR') : 'N/A'}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  (user.performance_percentage || 0) >= 80 ? 'bg-green-100 text-green-800' :
+                  (user.performance_percentage || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {user.performance_percentage || 0}%
+                </span>
               </td>
             </tr>
           )) : (
             <tr>
-              <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+              <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
                 Aucun utilisateur trouvé pour cet entrepôt
               </td>
             </tr>
@@ -1020,12 +1068,14 @@ const Entrepots = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">{selectedWarehouse.name}</h2>
               <div className="text-sm text-gray-600 space-y-1">
-                <p><strong>Localisation:</strong> {selectedWarehouse.location}</p>
+                <p><strong>Localisation:</strong> {selectedWarehouse.governorate || selectedWarehouse.location || "Non renseignée"}</p>
                 <p><strong>Adresse:</strong> {selectedWarehouse.address || "Non renseignée"}</p>
-                <p><strong>Responsable:</strong> {selectedWarehouse.manager}</p>
-                <p><strong>Téléphone:</strong> {selectedWarehouse.phone || "Non renseigné"}</p>
-                <p><strong>Email:</strong> {selectedWarehouse.email || "Non renseigné"}</p>
-                <p><strong>Date de création:</strong> {selectedWarehouse.createdAt}</p>
+                <p><strong>Responsable:</strong> {selectedWarehouse.manager_name || selectedWarehouse.manager || "Non assigné"}</p>
+                <p><strong>Téléphone:</strong> {selectedWarehouse.manager_phone || selectedWarehouse.phone || "Non renseigné"}</p>
+                <p><strong>Email:</strong> {selectedWarehouse.manager_email || selectedWarehouse.email || "Non renseigné"}</p>
+                <p><strong>Date de création:</strong> {selectedWarehouse.created_at ? new Date(selectedWarehouse.created_at).toLocaleDateString('fr-FR') : "Non renseignée"}</p>
+                <p><strong>Capacité:</strong> {selectedWarehouse.capacity || 100} colis</p>
+                <p><strong>Stock actuel:</strong> {selectedWarehouse.current_stock || 0} colis ({selectedWarehouse.stock_percentage || 0}%)</p>
                 <p><strong>Statut:</strong> 
                   <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${
                     selectedWarehouse.status === "Actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
@@ -1033,6 +1083,9 @@ const Entrepots = () => {
                     {selectedWarehouse.status}
                   </span>
                 </p>
+                {currentUser && currentUser.role === 'Chef d\'agence' && (
+                  <p><strong>Agence:</strong> {userAgency}</p>
+                )}
               </div>
             </div>
             <div className="flex space-x-3">
@@ -1053,7 +1106,12 @@ const Entrepots = () => {
 
           {/* Statistiques */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques de l'entrepôt</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {currentUser && currentUser.role === 'Chef d\'agence' 
+                ? `Statistiques de l'agence ${userAgency}`
+                : 'Statistiques de l\'entrepôt'
+              }
+            </h3>
             {renderStatistics(currentUser && currentUser.role === 'Chef d\'agence' ? {
               totalPackages: agencyParcels.length,
               deliveredToday: (agencyParcelStats['Livrés'] || 0) + (agencyParcelStats['Livrés payés'] || 0),
@@ -1217,12 +1275,23 @@ const Entrepots = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Sélectionnez un responsable</option>
-              {chefAgences.map((chef) => (
-                <option key={chef.id} value={chef.id}>
-                  {chef.name} ({chef.email})
+              {chefAgences.length > 0 ? (
+                chefAgences.map((chef) => (
+                  <option key={chef.id} value={chef.id}>
+                    {chef.name} - {chef.email} {chef.phone ? `(${chef.phone})` : ''}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  Aucun Chef d'agence disponible
                 </option>
-              ))}
+              )}
             </select>
+            {chefAgences.length === 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Tous les Chef d'agence sont déjà assignés à un entrepôt. Créez d'abord un nouveau Chef d'agence.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
