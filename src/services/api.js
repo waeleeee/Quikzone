@@ -264,7 +264,7 @@ const mockUsers = [
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5001/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -971,7 +971,7 @@ export const apiService = {
       console.log('Uploading file:', file.name, 'Size:', file.size);
       
       // Use axios directly (not the configured instance) to avoid response interceptor
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/upload/single`, formData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5001/api'}/upload/single`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -1013,7 +1013,7 @@ export const apiService = {
       });
       
       // Use axios directly (not the configured instance) to avoid response interceptor
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/upload/multiple`, formData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5001/api'}/upload/multiple`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
