@@ -12,7 +12,7 @@ const pool = new Pool({
   max: 200,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  ssl: false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Test the connection
