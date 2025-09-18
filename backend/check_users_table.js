@@ -1,55 +1,86 @@
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'quickzone_db',
-  user: 'postgres',
-  password: 'waelrh'
-});
+const { pool } = require('./config/database');
 
 async function checkUsersTable() {
+  const client = await pool.connect();
   try {
-    console.log('🔍 Checking users table structure...');
+    console.log('🔍 CHECKING USERS TABLE STRUCTURE\n');
     
-    // Check table columns
-    const columnsResult = await pool.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      ORDER BY ordinal_position
+    // Check all users with livreur-related roles
+    console.log('1️⃣ All users with livreur-related roles:');
+    const livreurUsers = await client.query(`
+      SELECT id, first_name, last_name, email, role, agency, governorate, is_active
+      FROM users 
+      WHERE role ILIKE '%livreur%' OR role ILIKE '%driver%' OR role ILIKE '%chauffeur%'
+      ORDER BY role, first_name
     `);
+    console.log('Livreur users found:', livreurUsers.rows);
     
-    console.log('\n📋 Users table columns:');
-    columnsResult.rows.forEach(row => {
-      console.log(`- ${row.column_name}: ${row.data_type}`);
-    });
+    // Check all distinct roles in the users table
+    console.log('\n2️⃣ All distinct roles in users table:');
+    const allRoles = await client.query(`
+      SELECT DISTINCT role, COUNT(*) as count
+      FROM users 
+      GROUP BY role
+      ORDER BY role
+    `);
+    console.log('All roles:', allRoles.rows);
     
-    // Check if agency/governorate columns exist
-    const hasAgency = columnsResult.rows.some(row => row.column_name === 'agency');
-    const hasGovernorate = columnsResult.rows.some(row => row.column_name === 'governorate');
+    // Check if there are any users with role 'Livreur' (singular)
+    console.log('\n3️⃣ Users with role "Livreur" (singular):');
+    const singularLivreurs = await client.query(`
+      SELECT id, first_name, last_name, email, role, agency, governorate
+      FROM users 
+      WHERE role = 'Livreur'
+      ORDER BY first_name
+    `);
+    console.log('Singular livreurs:', singularLivreurs.rows);
     
-    console.log(`\n🔍 Agency column exists: ${hasAgency}`);
-    console.log(`🔍 Governorate column exists: ${hasGovernorate}`);
+    // Check if there are any users with role 'Livreurs' (plural)
+    console.log('\n4️⃣ Users with role "Livreurs" (plural):');
+    const pluralLivreurs = await client.query(`
+      SELECT id, first_name, last_name, email, role, agency, governorate
+      FROM users 
+      WHERE role = 'Livreurs'
+      ORDER BY first_name
+    `);
+    console.log('Plural livreurs:', pluralLivreurs.rows);
     
-    // Check sample user data
-    const userResult = await pool.query('SELECT id, name, email, role, agency, governorate FROM users LIMIT 3');
+    // Check if there's a separate livreurs table
+    console.log('\n5️⃣ Checking if there\'s a separate livreurs table:');
+    try {
+      const tableCheck = await client.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name ILIKE '%livreur%'
+      `);
+      console.log('Tables with "livreur" in name:', tableCheck.rows);
+    } catch (error) {
+      console.log('Error checking tables:', error.message);
+    }
     
-    console.log('\n👥 Sample user data:');
-    userResult.rows.forEach((user, index) => {
-      console.log(`\nUser ${index + 1}:`);
-      console.log(`- ID: ${user.id}`);
-      console.log(`- Name: ${user.name}`);
-      console.log(`- Email: ${user.email}`);
-      console.log(`- Role: ${user.role}`);
-      console.log(`- Agency: ${user.agency || 'NULL'}`);
-      console.log(`- Governorate: ${user.governorate || 'NULL'}`);
-    });
+    // Test the exact query used in the API
+    console.log('\n6️⃣ Testing the API query for available livreurs:');
+    const apiQuery = `
+      SELECT id, CONCAT(first_name, ' ', last_name) as name, phone, email, agency, governorate
+      FROM users 
+      WHERE role IN ('Livreurs', 'Livreur') AND is_active = true
+      ORDER BY name ASC
+    `;
+    
+    try {
+      const apiResult = await client.query(apiQuery);
+      console.log('API query result count:', apiResult.rows.length);
+      console.log('API query results:', apiResult.rows);
+    } catch (error) {
+      console.log('❌ API query failed:', error.message);
+    }
     
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('❌ Test error:', error);
   } finally {
-    await pool.end();
+    client.release();
+    process.exit(0);
   }
 }
 

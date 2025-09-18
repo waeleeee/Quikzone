@@ -69,8 +69,8 @@ export const ROLE_PERMISSIONS = {
     paiment_expediteur: true,
     reclamation: true,
     commercial_payments: true,
-    demands: true, // Can view demands from their expediteurs
-    pickup_missions: true // Can view pickup missions for their expediteurs
+    demands: false, // Can view demands from their expediteurs
+    pickup_missions: false // Can view pickup missions for their expediteurs
   },
 
   // FINANCE - Access to financial operations
@@ -116,10 +116,10 @@ export const ROLE_PERMISSIONS = {
   // CHEF D'AGENCE - Access to operational management
   'Chef d\'agence': {
     dashboard: true,
-    personnel: {
+    personnel: {  
       administration: false,
-      commercial: false,
-      finance: false,
+      commercial: true,
+      finance: true,
       chef_agence: false, // Can manage their team
       membre_agence: true, // Can manage agency members
       livreurs: true // Can manage drivers
@@ -151,11 +151,12 @@ export const ROLE_PERMISSIONS = {
     colis: true, // Full access to manage parcels
     pickup: true, // Can view and manage pickup missions
     pickup_client: true, // Can view and manage delivery missions
-    pickup_missions: true, // Can view and manage pickup missions
+    pickup_missions: false, // Can view and manage pickup missions
     secteurs: false, // Limited access
     entrepots: false, // Limited access
     paiment_expediteur: false, // Limited access
-    reclamation: true // Full access to manage complaints
+    reclamation: true, // Full access to manage complaints
+    demands: true,
   },
 
   // LIVREURS - Limited access for delivery operations

@@ -42,9 +42,29 @@ const MembreAgence = () => {
   const [loading, setLoading] = useState(true);
 
   // Get current user
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    return user;
+  });
   const [warehouses, setWarehouses] = useState([]);
   const [warehousesLoading, setWarehousesLoading] = useState(true);
+
+  // Fetch real-time current user data
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        console.log('🔍 Fetching real-time current user data...');
+        const realUserData = await apiService.getCurrentUser();
+        console.log('🔍 Real-time user data:', realUserData);
+        setCurrentUser(realUserData);
+      } catch (error) {
+        console.error('❌ Error fetching real-time user data:', error);
+        // Keep the localStorage data as fallback
+      }
+    };
+    
+    fetchCurrentUser();
+  }, []);
 
   // Fetch members from backend
   useEffect(() => {
@@ -71,44 +91,11 @@ const MembreAgence = () => {
         
         if (user && user.role === 'Chef d\'agence') {
           console.log('🔍 User is Chef d\'agence, applying filtering...');
-          // For Chef d'agence, only show members from their agency
-          // We need to get the user's agency from the agency_managers table
-          try {
-            console.log('🔍 Fetching agency managers for filtering...');
-            const agencyManagerResponse = await apiService.getAgencyManagers();
-            console.log('🔍 All agency managers response:', agencyManagerResponse);
-            console.log('🔍 Agency managers type:', typeof agencyManagerResponse);
-            console.log('🔍 Agency managers length:', Array.isArray(agencyManagerResponse) ? agencyManagerResponse.length : 'Not an array');
-            
-            const agencyManager = agencyManagerResponse.find(am => am.email === user.email);
-            console.log('🔍 Looking for agency manager with email:', user.email);
-            console.log('🔍 Found agency manager:', agencyManager);
-            
-            if (agencyManager) {
-              console.log('🔍 Agency manager found:', agencyManager);
-              console.log('🔍 Agency manager agency:', agencyManager.agency);
-              console.log('🔍 Agency manager agency type:', typeof agencyManager.agency);
-              
-              // Show all members first for debugging
-              console.log('🔍 All members before filtering:', data);
-              console.log('🔍 Sample member structure:', data[0]);
-              
-              filteredData = data.filter(member => {
-                console.log(`🔍 Checking member ${member.name}: member.agency="${member.agency}" (type: ${typeof member.agency}) vs agencyManager.agency="${agencyManager.agency}" (type: ${typeof agencyManager.agency})`);
-                const matches = member.agency === agencyManager.agency;
-                console.log(`🔍 Match result: ${matches}`);
-                return matches;
-              });
-              console.log('🔍 Filtered members count:', filteredData.length);
-              console.log('🔍 Filtered members:', filteredData);
-            } else {
-              console.log('⚠️ Agency manager not found for user:', user.email);
-              console.log('⚠️ Available agency managers:', agencyManagerResponse.map(am => ({ email: am.email, agency: am.agency })));
-            }
-          } catch (error) {
-            console.error('❌ Error fetching agency manager data:', error);
-            console.error('❌ Error details:', error.response?.data || error.message);
-          }
+          // For Chef d'agence, let the backend handle filtering automatically
+          console.log('🔍 Backend will filter members automatically based on user role and agency');
+          filteredData = data; // Backend should already filter this
+          console.log('🔍 Backend-filtered members count:', filteredData.length);
+          console.log('🔍 Backend-filtered members:', filteredData);
         } else {
           console.log('🔍 User is not Chef d\'agence, showing all members');
         }
@@ -179,18 +166,23 @@ const MembreAgence = () => {
     let defaultGovernorate = 'Tunis';
     
     if (currentUser && currentUser.role === 'Chef d\'agence') {
-      // For Chef d'agence, get their agency from the agency_managers table
+      // For Chef d'agence, get their real-time agency data
       try {
-        const agencyManagerResponse = await apiService.getAgencyManagers();
-        const agencyManager = agencyManagerResponse.find(am => am.email === currentUser.email);
+        console.log('🔍 Fetching real-time user data for Chef d\'agence...');
+        const realUserData = await apiService.getCurrentUser();
+        console.log('🔍 Real-time user data:', realUserData);
         
-        if (agencyManager) {
-          defaultAgency = agencyManager.agency;
-          defaultGovernorate = agencyManager.governorate;
+        if (realUserData && realUserData.agency) {
+          defaultAgency = realUserData.agency;
+          defaultGovernorate = realUserData.governorate || 'Tunis';
           console.log('🔍 Setting agency for new member:', defaultAgency);
+          console.log('🔍 Setting governorate for new member:', defaultGovernorate);
+        } else {
+          console.log('⚠️ No agency found in real-time user data, using fallback');
         }
       } catch (error) {
-        console.error('Error fetching agency manager data:', error);
+        console.error('❌ Error fetching real-time user data:', error);
+        // Keep the fallback values
       }
     }
     

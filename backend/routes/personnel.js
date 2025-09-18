@@ -439,17 +439,36 @@ router.get('/agency-members', async (req, res) => {
         u.phone,
         u.created_at,
         r.name as role,
-        'Siège' as agency,
-        'Tunis' as governorate,
-        '' as address,
+        COALESCE(am.agency, 'Siège') as agency,
+        COALESCE(am.governorate, 'Tunis') as governorate,
+        COALESCE(am.address, '') as address,
         'active' as status
       FROM users u
       INNER JOIN user_roles ur ON u.id = ur.user_id
       INNER JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN agency_managers am ON u.email = am.email
       WHERE r.name = $1 AND u.is_active = true
     `;
     
     const queryParams = ['Membre de l\'agence'];
+    
+    // Role-based filtering
+    if (req.user?.role === 'Chef d\'agence' || req.user?.role === 'Membre d\'agence') {
+      const agencyResult = await db.query(`SELECT agency FROM agency_managers WHERE email = $1`, [req.user.email]);
+      if (agencyResult.rows.length > 0) {
+        const userAgency = agencyResult.rows[0].agency;
+        if (userAgency) {
+          query += ` AND am.agency = $${queryParams.length + 1}`;
+          queryParams.push(userAgency);
+          console.log('🔍 Filtering agency members by agency:', userAgency);
+        } else {
+          query += ` AND 1=0`; // Show no members if no agency data
+        }
+      } else {
+        query += ` AND 1=0`; // Show no members if no agency manager found
+      }
+    }
+    // Admin users see all agency members (no additional filtering)
     
     if (search) {
       query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $${queryParams.length + 1} OR u.email ILIKE $${queryParams.length + 1})`;
@@ -510,12 +529,26 @@ const ALLOWED_ROLES = [
 // Create new agency member (user with Membre de l'agence role)
 router.post('/agency-members', async (req, res) => {
   try {
-    const { name, email, phone, governorate, address, agency, role, password } = req.body;
+    const { name, email, phone, governorate, address, role, password } = req.body;
+
+    // Get the Chef d'agence's agency automatically
+    let userAgency = 'Siège';
+    let userGovernorate = 'Tunis';
+    
+    if (req.user?.role === 'Chef d\'agence') {
+      const agencyResult = await db.query(`SELECT agency, governorate FROM agency_managers WHERE email = $1`, [req.user.email]);
+      if (agencyResult.rows.length > 0) {
+        userAgency = agencyResult.rows[0].agency || 'Siège';
+        userGovernorate = agencyResult.rows[0].governorate || 'Tunis';
+        console.log('🔍 Using Chef d\'agence agency:', userAgency);
+      }
+    }
 
     console.log('🔧 Creating agency member with data:', {
       name,
       email,
-      agency,
+      agency: userAgency,
+      governorate: userGovernorate,
       role,
       hasPassword: !!password,
       passwordLength: password?.length
@@ -591,8 +624,8 @@ router.post('/agency-members', async (req, res) => {
       const createdUser = userResult.rows[0];
       createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
       createdUser.role = 'Membre de l\'agence';
-      createdUser.agency = agency || 'Siège';
-      createdUser.governorate = governorate || 'Tunis';
+      createdUser.agency = userAgency;
+      createdUser.governorate = userGovernorate;
       createdUser.address = address || '';
       createdUser.status = 'active';
       
@@ -2075,8 +2108,41 @@ router.get('/livreurs', async (req, res) => {
     
     const queryParams = [];
     
+    // Role-based filtering
+    if (req.user?.role === 'Chef d\'agence' || req.user?.role === 'Membre d\'agence') {
+      const agencyResult = await db.query(`SELECT agency FROM agency_managers WHERE email = $1`, [req.user.email]);
+      if (agencyResult.rows.length > 0) {
+        const userAgency = agencyResult.rows[0].agency;
+        if (userAgency) {
+          query += ` AND agency = $${queryParams.length + 1}`;
+          queryParams.push(userAgency);
+          console.log('🔍 Filtering drivers by agency:', userAgency);
+        } else {
+          query += ` AND 1=0`; // Show no drivers if no agency data
+        }
+      } else {
+        query += ` AND 1=0`; // Show no drivers if no agency manager found
+      }
+    } else if (req.user?.role === 'Commercial') {
+      // For Commercial users, show drivers from their assigned agency
+      const commercialResult = await db.query(`SELECT agency FROM commercials WHERE email = $1`, [req.user.email]);
+      if (commercialResult.rows.length > 0) {
+        const commercialAgency = commercialResult.rows[0].agency;
+        if (commercialAgency) {
+          query += ` AND agency = $${queryParams.length + 1}`;
+          queryParams.push(commercialAgency);
+          console.log('🔍 Filtering drivers by commercial agency:', commercialAgency);
+        } else {
+          query += ` AND 1=0`;
+        }
+      } else {
+        query += ` AND 1=0`;
+      }
+    }
+    // Admin users see all drivers (no additional filtering)
+    
     if (search) {
-      query += ` AND (name ILIKE $1 OR email ILIKE $1 OR car_number ILIKE $1)`;
+      query += ` AND (name ILIKE $${queryParams.length + 1} OR email ILIKE $${queryParams.length + 1} OR car_number ILIKE $${queryParams.length + 1})`;
       queryParams.push(`%${search}%`);
     }
     

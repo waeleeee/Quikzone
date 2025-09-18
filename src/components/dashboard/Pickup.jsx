@@ -5,7 +5,7 @@ import html2pdf from "html2pdf.js";
 import MissionColisScan from "./MissionColisScan";
 import ChefAgenceMissionScan from "./ChefAgenceMissionScan";
 
-import { missionsPickupService } from '../../services/api';
+import { pickupMissionsService } from '../../services/api';
 import { apiService } from '../../services/api';
 
 // Pickup mission status flow
@@ -28,7 +28,6 @@ const statusBadge = (status) => {
     "RTN dépot": "bg-orange-100 text-orange-800 border-orange-300",
     "Livrés": "bg-green-100 text-green-800 border-green-300",
     "Livrés payés": "bg-emerald-100 text-emerald-800 border-emerald-300",
-    "Terminé": "bg-emerald-100 text-emerald-800 border-emerald-300",
     "Retour définitif": "bg-red-100 text-red-800 border-red-300",
     "RTN client dépôt": "bg-pink-100 text-pink-800 border-pink-300",
     "Retour Expéditeur": "bg-gray-100 text-gray-800 border-gray-300",
@@ -83,6 +82,21 @@ const Pickup = () => {
   // Dashboard filter state
   const [statusFilter, setStatusFilter] = useState(null);
 
+  // Normalize agency names to improve matching (handles accents/prefixes like "Entrepôt")
+  const normalizeAgencyName = (name) => {
+    if (!name || typeof name !== 'string') return '';
+    return name
+      .toLowerCase()
+      .replace(/\s+/g, ' ') // collapse multiple spaces
+      .replace(/^entrep[ôo]t\s+/i, '') // strip leading "Entrepôt " or "Entrepot "
+      .replace(/[êéèë]/g, 'e')
+      .replace(/[âàä]/g, 'a')
+      .replace(/[îï]/g, 'i')
+      .replace(/[ôö]/g, 'o')
+      .replace(/[ûü]/g, 'u')
+      .trim();
+  };
+
   // Load data from API
   useEffect(() => {
     const fetchAll = async () => {
@@ -92,25 +106,100 @@ const Pickup = () => {
         // Get current user from localStorage
         const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
         setCurrentUser(user);
+        
+        console.log('🔍 Current user from localStorage:', user);
+        console.log('🔍 User role:', user?.role);
+        console.log('🔍 User email:', user?.email);
+        console.log('🔍 User agency:', user?.agency);
+        console.log('🔍 User governorate:', user?.governorate);
 
         console.log('Fetching pickup missions data...');
-        const [missionsData, driversData, acceptedDemandsData] = await Promise.all([
-          missionsPickupService.getMissionsPickup(),
-          apiService.getDrivers(),
-          apiService.getAcceptedMissions(true), // This gets demands with "Accepted" status, excluding those already in missions
-        ]);
         
-        console.log('🔍 Accepted demands (filtered to exclude those already in missions):', acceptedDemandsData);
+        // Fetch data with individual error handling
+        let missionsData = [];
+        let driversData = [];
+        let acceptedDemandsData = [];
         
+        try {
+          console.log('🔍 Calling pickupMissionsService.getPickupMissions()...');
+          missionsData = await pickupMissionsService.getPickupMissions();
+          console.log('✅ Missions data loaded successfully');
+          console.log('🔍 Raw missionsData received:', missionsData);
+          console.log('🔍 missionsData type:', typeof missionsData);
+          console.log('🔍 missionsData keys:', missionsData ? Object.keys(missionsData) : 'null');
+          console.log('🔍 missionsData.missions:', missionsData?.missions);
+          console.log('🔍 missionsData.missions length:', missionsData?.missions?.length);
+        } catch (error) {
+          console.error('❌ Error loading missions:', error);
+          missionsData = [];
+        }
+        
+        try {
+          driversData = await apiService.getDrivers();
+          console.log('✅ Drivers data loaded successfully');
+        } catch (error) {
+          console.error('❌ Error loading drivers:', error);
+          driversData = [];
+        }
+        
+        // Handle new API response structure for drivers
+        let drivers = [];
+        if (driversData?.drivers && Array.isArray(driversData.drivers)) {
+          // New structure: { drivers: [...], userRole: "...", agencyFilter: "..." }
+          drivers = driversData.drivers;
+          console.log('🔍 Using new API structure for drivers - drivers array:', drivers.length);
+        } else if (Array.isArray(driversData)) {
+          // Old structure: direct array
+          drivers = driversData;
+          console.log('🔍 Using old API structure for drivers - direct array:', drivers.length);
+        } else if (driversData?.data && Array.isArray(driversData.data)) {
+          // Alternative structure: { data: [...] }
+          drivers = driversData.data;
+          console.log('🔍 Using alternative structure for drivers - data array:', drivers.length);
+        } else {
+          // Fallback: empty array
+          drivers = [];
+          console.log('🔍 No valid drivers data found, using empty array');
+        }
+        
+        try {
+          acceptedDemandsData = await apiService.getAcceptedMissions(true);
+          console.log('✅ Accepted demands data loaded successfully', acceptedDemandsData);
+        } catch (error) {
+          console.error('❌ Error loading accepted demands:', error);
+          acceptedDemandsData = [];
+        }
+        
+        // Handle new API response structure for accepted demands
+        let demands = [];
+        if (acceptedDemandsData?.demands && Array.isArray(acceptedDemandsData.demands)) {
+          // New structure: { demands: [...], userRole: "...", agencyFilter: "..." }
+          demands = acceptedDemandsData.demands;
+          console.log('🔍 Using new API structure for demands - demands array:', demands.length);
+        } else if (Array.isArray(acceptedDemandsData)) {
+          // Old structure: direct array
+          demands = acceptedDemandsData;
+          console.log('🔍 Using old API structure for demands - direct array:', demands.length);
+        } else if (acceptedDemandsData?.data && Array.isArray(acceptedDemandsData.data)) {
+          // Alternative structure: { data: [...] }
+          demands = acceptedDemandsData.data;
+          console.log('🔍 Using alternative structure for demands - data array:', demands.length);
+        } else {
+          // Fallback: empty array
+          demands = [];
+          console.log('🔍 No valid demands data found, using empty array');
+        }
+        
+        console.log('🔍 Accepted demands (filtered to exclude those already in missions):', demands);
         console.log('Missions data:', missionsData);
         console.log('Drivers data:', driversData);
-        console.log('Accepted demands data:', acceptedDemandsData);
+        console.log('Accepted demands data:', demands);
         console.log('Current user:', user);
         
         // Debug: Check each demand's agency
-        if (acceptedDemandsData && acceptedDemandsData.length > 0) {
+        if (demands && demands.length > 0) {
           console.log('🔍 Debug - Accepted demands agencies:');
-          acceptedDemandsData.forEach((demand, index) => {
+          demands.forEach((demand, index) => {
             console.log(`Demand ${index + 1}:`, {
               id: demand.id,
               expediteur_name: demand.expediteur_name,
@@ -120,23 +209,76 @@ const Pickup = () => {
           });
         }
         
-        const missions = missionsData?.data || missionsData || [];
+        console.log('🔍 DEBUG - missionsData structure:', {
+          missionsData,
+          hasMissions: !!missionsData?.missions,
+          missionsLength: missionsData?.missions?.length,
+          hasData: !!missionsData?.data,
+          dataLength: missionsData?.data?.length,
+          missionsDataType: typeof missionsData,
+          isArray: Array.isArray(missionsData)
+        });
+        
+        // Handle API response structure - simplified and more robust
+        let missions = [];
+        console.log('🔍 Processing missionsData structure...');
+        console.log('🔍 Full missionsData:', missionsData);
+        
+        if (missionsData?.missions && Array.isArray(missionsData.missions)) {
+          // New structure: { missions: [...], pagination: {...}, userRole: "...", agencyFilter: "..." }
+          missions = missionsData.missions;
+          console.log('🔍 Using new API structure - missions array:', missions.length);
+        } else if (Array.isArray(missionsData)) {
+          // Old structure: direct array
+          missions = missionsData;
+          console.log('🔍 Using old API structure - direct array:', missions.length);
+        } else if (missionsData?.data && Array.isArray(missionsData.data)) {
+          // Alternative structure: { data: [...] }
+          missions = missionsData.data;
+          console.log('🔍 Using alternative structure - data array:', missions.length);
+        } else {
+          // Fallback: empty array
+          missions = [];
+          console.log('🔍 No valid missions data found, using empty array');
+          console.log('🔍 missionsData type:', typeof missionsData);
+          console.log('🔍 missionsData keys:', missionsData ? Object.keys(missionsData) : 'null');
+        }
+        
+        console.log('🔍 Final missions array:', missions);
+        console.log('🔍 Final missions length:', missions.length);
+        
+        console.log('🔍 DEBUG - Final missions array:', {
+          missions,
+          length: missions.length,
+          firstMission: missions[0],
+          missionsDataKeys: missionsData ? Object.keys(missionsData) : 'null'
+        });
+        
+        console.log('🔍 SETTING MISSIONS STATE:', missions.length, 'missions');
         setMissions(missions);
-        setDrivers(driversData);
-        setAcceptedMissions(acceptedDemandsData || []);
+         setDrivers(drivers);
+         setAcceptedMissions(demands || []);
+
+         // Pre-filter accepted demands by user's agency (backend already filters, but ensure on FE too)
+         try {
+           filterAcceptedMissionsByRole(demands || [], user);
+         } catch (e) {
+           console.warn('Filtering accepted missions by role failed:', e);
+           setFilteredAcceptedMissions(demands || []);
+         }
         
         // Calculate dashboard stats
         calculateStats(missions);
         
         // Initialize filtered drivers based on user role
-        filterDriversByRole(driversData, user);
+        filterDriversByRole(drivers, user);
         
         // Fetch security codes for all missions
         console.log('Fetching security codes for all missions...');
         const codes = {};
         for (const mission of missions) {
           try {
-            const codeResponse = await missionsPickupService.getMissionSecurityCode(mission.id);
+            const codeResponse = await pickupMissionsService.getPickupMission(mission.id);
             console.log('🔐 Security code response for mission', mission.id, ':', codeResponse);
             
             if (codeResponse.success && codeResponse.data && codeResponse.data.security_code) {
@@ -154,8 +296,18 @@ const Pickup = () => {
         }
         console.log('🔐 Final security codes:', codes);
         setSecurityCodes(codes);
+        
+        // Check if we have at least some data to work with
+        if (missions.length === 0 && demands.length === 0) {
+          setError("Aucune mission ou demande acceptée trouvée.");
+        } else if (missions.length === 0) {
+          setError(`Aucune mission de ramassage trouvée. Vous avez ${demands.length} demandes acceptées disponibles pour créer des missions de collecte.`);
+        } else {
+          setError(null); // Clear any previous errors
+        }
+        
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('Error in fetchAll:', err);
         setError("Erreur lors du chargement des données.");
       } finally {
         setLoading(false);
@@ -166,10 +318,84 @@ const Pickup = () => {
 
   // Recalculate stats whenever missions change
   useEffect(() => {
+    console.log('🔍 useEffect triggered - missions changed:', {
+      missionsLength: missions.length,
+      currentUser: currentUser?.role,
+      statusFilter
+    });
+    
     if (missions.length > 0) {
       calculateStats(missions);
+    } else {
+      console.log('🔍 No missions in state, setting stats to 0');
+      setStats({
+        totalMissions: 0,
+        pendingMissions: 0,
+        completedMissions: 0,
+        rejectedMissions: 0
+      });
     }
+  }, [missions, currentUser, statusFilter]);
+
+  // Debug: Log whenever missions state changes
+  useEffect(() => {
+    console.log('🔍 MISSIONS STATE CHANGED:', {
+      missionsLength: missions.length,
+      missions: missions.map(m => ({ id: m.id, status: m.status, agency: m.agency }))
+    });
   }, [missions]);
+
+  // Get filtered missions based on status filter and user role
+  const getFilteredMissions = () => {
+    let filteredMissions = missions;
+    
+    // First, filter by user role and agency
+    if (currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence')) {
+      const userAgency = currentUser.agency || currentUser.governorate;
+      if (userAgency) {
+        filteredMissions = missions.filter(mission => {
+          // Check if mission has expediteur_agency field
+          if (mission.expediteur_agency) {
+            return mission.expediteur_agency.toLowerCase() === userAgency.toLowerCase();
+          }
+          // If no expediteur_agency, check if mission has parcels with shipper agency
+          if (mission.parcels && mission.parcels.length > 0) {
+            return mission.parcels.some(parcel => 
+              parcel.shipper_agency && parcel.shipper_agency.toLowerCase() === userAgency.toLowerCase()
+            );
+          }
+          // If no parcels info, check if mission has driver from same agency
+          if (mission.driver_id) {
+            const driver = drivers.find(d => d.id === mission.driver_id);
+            if (driver && (driver.agency || driver.governorate)) {
+              return (driver.agency || driver.governorate).toLowerCase() === userAgency.toLowerCase();
+            }
+          }
+          return false; // Default to false if no agency info found
+        });
+      }
+    } else if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Administration')) {
+      // Admin and Administration users see ALL missions (no filtering)
+      filteredMissions = missions;
+      console.log('🔍 Admin user - showing all missions:', missions.length);
+    }
+    
+    // Then, apply status filter if set
+    if (statusFilter) {
+      filteredMissions = filteredMissions.filter(mission => mission.status === statusFilter);
+    }
+    
+    console.log('🔍 getFilteredMissions result:', {
+      userRole: currentUser?.role,
+      totalMissions: missions.length,
+      filteredMissions: filteredMissions.length,
+      missions: missions.map(m => ({ id: m.id, status: m.status, agency: m.agency }))
+    });
+    
+    return filteredMissions;
+  };
+
+  // Note: do not depend on getFilteredMissions() directly to avoid infinite loops.
 
   // Filter drivers based on user role and agency
   const filterDriversByRole = (driversData, user) => {
@@ -204,11 +430,12 @@ const Pickup = () => {
       // Admin sees all accepted missions
       setFilteredAcceptedMissions(missionsData);
     } else if (user.role === 'Chef d\'agence' || user.role === 'Membre de l\'agence') {
-      // Chef/Membre d'agence see only missions in their agency
-      const userAgency = user.agency || user.governorate;
-      const filtered = missionsData.filter(mission => 
-        (mission.expediteur_agency || "").toLowerCase() === userAgency?.toLowerCase()
-      );
+      // Chef/Membre d'agence see only missions in their agency (robust normalization)
+      const userAgency = normalizeAgencyName(user.agency || user.governorate);
+      const filtered = missionsData.filter(mission => {
+        const demandAgency = normalizeAgencyName(mission.expediteur_agency || '');
+        return demandAgency === userAgency || demandAgency.includes(userAgency) || userAgency.includes(demandAgency);
+      });
       setFilteredAcceptedMissions(filtered);
     } else {
       setFilteredAcceptedMissions(missionsData);
@@ -217,7 +444,41 @@ const Pickup = () => {
 
   // Calculate dashboard statistics
   const calculateStats = (missionsData) => {
-    if (!missionsData || missionsData.length === 0) {
+    console.log('🔍 calculateStats called with:', {
+      missionsDataLength: missionsData?.length || 0,
+      currentMissionsState: missions.length,
+      currentUser: currentUser?.role
+    });
+    
+    // Use the missionsData parameter directly for filtering (avoid state dependency issues)
+    let filteredMissions = missionsData;
+    
+    // Apply role-based filtering
+    if (currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence')) {
+      const userAgency = currentUser.agency || currentUser.governorate;
+      if (userAgency) {
+        filteredMissions = missionsData.filter(mission => {
+          // Check if mission has agency field (new structure)
+          if (mission.agency) {
+            return mission.agency.toLowerCase() === userAgency.toLowerCase();
+          }
+          // Fallback to other agency fields
+          if (mission.expediteur_agency) {
+            return mission.expediteur_agency.toLowerCase() === userAgency.toLowerCase();
+          }
+          return false;
+        });
+      }
+    } else if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Administration')) {
+      // Admin and Administration users see ALL missions (no filtering)
+      filteredMissions = missionsData;
+      console.log('🔍 Admin user - showing all missions for stats:', missionsData.length);
+    }
+    
+    console.log('🔍 Filtered missions for stats:', filteredMissions?.length || 0);
+    
+    if (!filteredMissions || filteredMissions.length === 0) {
+      console.log('🔍 No filtered missions - setting stats to 0');
       setStats({
         totalMissions: 0,
         pendingMissions: 0,
@@ -227,17 +488,19 @@ const Pickup = () => {
       return;
     }
 
-    const total = missionsData.length;
-    const pending = missionsData.filter(m => m.status === 'En attente').length;
-    const completed = missionsData.filter(m => m.status === 'Terminé').length;
-    const rejected = missionsData.filter(m => m.status === 'Refusé par livreur').length;
+    const total = filteredMissions.length;
+    const pending = filteredMissions.filter(m => m.status === 'En attente').length;
+    const completed = filteredMissions.filter(m => m.status === 'Terminé').length;
+    const rejected = filteredMissions.filter(m => m.status === 'Refusé par livreur').length;
 
-    console.log('📊 Dashboard stats calculated:', {
+    console.log('📊 Dashboard stats calculated (filtered by user role):', {
       total,
       pending,
       completed,
       rejected,
-      allStatuses: missionsData.map(m => m.status)
+      allStatuses: filteredMissions.map(m => m.status),
+      userRole: currentUser?.role,
+      userAgency: currentUser?.agency || currentUser?.governorate
     });
 
     setStats({
@@ -257,14 +520,6 @@ const Pickup = () => {
       // Set the new filter
       setStatusFilter(status);
     }
-  };
-
-  // Get filtered missions based on status filter
-  const getFilteredMissions = () => {
-    if (!statusFilter) {
-      return missions;
-    }
-    return missions.filter(mission => mission.status === statusFilter);
   };
 
   // Wizard helper functions
@@ -296,21 +551,26 @@ const Pickup = () => {
         return matches || containsMatch;
       });
     } else if (currentUser?.role === 'Chef d\'agence' || currentUser?.role === 'Membre de l\'agence') {
-      // Chef/Membre d'agence see only demands in their agency that match the driver's agency
-      const userAgency = currentUser.agency || currentUser.governorate;
-      const driverAgency = driver.agency || driver.governorate;
-      console.log('🔍 Chef/Membre filtering - User agency:', userAgency, 'Driver agency:', driverAgency);
-      
-      filteredDemands = acceptedMissions.filter(demand => {
-        const demandAgency = demand.expediteur_agency || "";
-        const matchesUser = demandAgency.toLowerCase() === userAgency?.toLowerCase();
-        const matchesDriver = demandAgency.toLowerCase() === driverAgency?.toLowerCase();
-        
-        // Also check if demand agency contains driver agency
-        const containsDriverMatch = demandAgency.toLowerCase().includes(driverAgency?.toLowerCase() || "");
-        
-        console.log(`🔍 Demand ${demand.id}: agency="${demandAgency}" matches user agency="${userAgency}" = ${matchesUser}, matches driver agency="${driverAgency}" = ${matchesDriver}, contains driver agency = ${containsDriverMatch}`);
-        return matchesUser && (matchesDriver || containsDriverMatch);
+      // Chef/Membre d'agence: only demands from their agency and matching the driver's agency
+      const userAgencyNorm = normalizeAgencyName(currentUser.agency || currentUser.governorate);
+      const driverAgencyNorm = normalizeAgencyName(driver.agency || driver.governorate);
+      console.log('🔍 Chef/Membre filtering - User agency:', userAgencyNorm, 'Driver agency:', driverAgencyNorm);
+
+      filteredDemands = (acceptedMissions || []).filter(demand => {
+        const demandAgencyNorm = normalizeAgencyName(demand.expediteur_agency || '');
+
+        const matchesUser =
+          demandAgencyNorm === userAgencyNorm ||
+          demandAgencyNorm.includes(userAgencyNorm) ||
+          userAgencyNorm.includes(demandAgencyNorm);
+
+        const matchesDriver =
+          demandAgencyNorm === driverAgencyNorm ||
+          demandAgencyNorm.includes(driverAgencyNorm) ||
+          driverAgencyNorm.includes(demandAgencyNorm);
+
+        console.log(`🔍 Demand ${demand.id}: demandAgency="${demandAgencyNorm}" matches user="${matchesUser}" matches driver="${matchesDriver}"`);
+        return matchesUser && matchesDriver;
       });
     }
     
@@ -382,9 +642,32 @@ const Pickup = () => {
   };
 
   const handleDelete = async (mission) => {
+    // Check if user can delete this mission
+    if (currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence')) {
+      const userAgency = currentUser.agency || currentUser.governorate;
+      let canDelete = false;
+      
+      // Check if mission belongs to user's agency
+      if (mission.expediteur_agency) {
+        canDelete = mission.expediteur_agency.toLowerCase() === userAgency.toLowerCase();
+      } else if (mission.parcels && mission.parcels.length > 0) {
+        canDelete = mission.parcels.some(parcel => 
+          parcel.shipper_agency && parcel.shipper_agency.toLowerCase() === userAgency.toLowerCase()
+        );
+      } else if (mission.driver_id) {
+        const driver = drivers.find(d => d.id === mission.driver_id);
+        canDelete = driver && driver.agency && driver.agency.toLowerCase() === userAgency.toLowerCase();
+      }
+      
+      if (!canDelete) {
+        alert("Vous ne pouvez supprimer que les missions de votre agence.");
+        return;
+      }
+    }
+    
     if (window.confirm("Supprimer cette mission ?")) {
       try {
-        await missionsPickupService.deleteMissionPickup(mission.id);
+        await pickupMissionsService.deletePickupMission(mission.id);
         const updatedMissions = missions.filter(m => m.id !== mission.id);
         setMissions(updatedMissions);
         // Recalculate stats
@@ -407,6 +690,20 @@ const Pickup = () => {
         return;
       }
       
+      // Additional security check: ensure all selected missions belong to user's agency
+      if (currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence')) {
+        const userAgency = currentUser.agency || currentUser.governorate;
+        const unauthorizedMissions = selectedMissions.filter(mission => {
+          const missionAgency = mission.expediteur_agency || "";
+          return missionAgency.toLowerCase() !== userAgency.toLowerCase();
+        });
+        
+        if (unauthorizedMissions.length > 0) {
+          alert("Vous ne pouvez créer des missions que pour les demandes de votre agence.");
+          return;
+        }
+      }
+      
       // Create pickup mission with selected missions
       const data = {
         livreur_id: selectedDriver.id,
@@ -415,26 +712,40 @@ const Pickup = () => {
       };
       
       console.log('🔍 Data being sent to backend:', JSON.stringify(data, null, 2));
+      console.log('🔍 Selected driver details:', selectedDriver);
+      console.log('🔍 Livreur ID being sent:', data.livreur_id);
+      console.log('🔍 Livreur ID type:', typeof data.livreur_id);
       
       console.log('Creating pickup mission:', data);
       
-      const response = await missionsPickupService.createMissionPickup(data);
+              const response = await pickupMissionsService.createPickupMission(data);
       console.log('Pickup mission created:', response);
       
-      // Add to missions list with full details
+      // Get the created mission data
       const createdMission = response.data || response;
       
-      // Get the full mission details with driver info
+      // Refresh the entire missions list to get updated data
       try {
-        const fullMissionResponse = await missionsPickupService.getMissionPickup(createdMission.id);
-        const fullMission = fullMissionResponse.data || fullMissionResponse;
-        const updatedMissions = [fullMission, ...missions];
-        setMissions(updatedMissions);
+        const refreshedMissions = await pickupMissionsService.getPickupMissions();
+        // Handle new API response structure
+        let missionsData = [];
+        if (refreshedMissions?.missions && Array.isArray(refreshedMissions.missions)) {
+          missionsData = refreshedMissions.missions;
+        } else if (Array.isArray(refreshedMissions)) {
+          missionsData = refreshedMissions;
+        } else if (refreshedMissions?.data && Array.isArray(refreshedMissions.data)) {
+          missionsData = refreshedMissions.data;
+        } else {
+          missionsData = [];
+        }
+        
+        setMissions(missionsData);
         // Recalculate stats
-        calculateStats(updatedMissions);
+        calculateStats(missionsData);
+        console.log('✅ Missions list refreshed successfully');
       } catch (error) {
-        console.error('Error fetching full mission details:', error);
-        // Fallback to the basic mission data
+        console.error('Error refreshing missions list:', error);
+        // Fallback: add the created mission to the list
         const updatedMissions = [createdMission, ...missions];
         setMissions(updatedMissions);
         // Recalculate stats
@@ -442,7 +753,7 @@ const Pickup = () => {
       }
       
       // Show success message with mission code
-      alert(`Mission créée avec succès!\nCode de mission: ${createdMission.mission_number}`);
+      alert(`Mission créée avec succès!\nCode de mission: ${createdMission.mission_number || createdMission.data?.mission_number}`);
       
       console.log('Closing modal...');
       setIsModalOpen(false);
@@ -508,7 +819,7 @@ const Pickup = () => {
       }
 
       // Call backend to scan parcel
-      await missionsPickupService.scanParcel(scanningMission.id, trackingNumber.trim());
+              await pickupMissionsService.scanParcel(scanningMission.id, trackingNumber.trim());
 
       // Add to scanned parcels
       const newScannedParcel = {
@@ -530,9 +841,22 @@ const Pickup = () => {
         setIsPickupScanModalOpen(false);
         // Refresh missions list
         const [missionsData] = await Promise.all([
-          missionsPickupService.getMissionsPickup()
+          pickupMissionsService.getPickupMissions()
         ]);
-        setMissions(missionsData?.data || missionsData || []);
+        
+        // Handle new API response structure
+        let missions = [];
+        if (missionsData?.missions && Array.isArray(missionsData.missions)) {
+          missions = missionsData.missions;
+        } else if (Array.isArray(missionsData)) {
+          missions = missionsData;
+        } else if (missionsData?.data && Array.isArray(missionsData.data)) {
+          missions = missionsData.data;
+        } else {
+          missions = [];
+        }
+        
+        setMissions(missions);
       }
 
     } catch (error) {
@@ -602,7 +926,7 @@ const Pickup = () => {
     try {
       // Fetch full mission details with driver and demand information
       console.log('🔍 Fetching full mission details for Chef d\'agence scanning:', mission.id);
-      const fullMissionResponse = await missionsPickupService.getMissionPickup(mission.id);
+              const fullMissionResponse = await pickupMissionsService.getPickupMission(mission.id);
       console.log('🔍 Full mission response:', fullMissionResponse);
       
       // The response is already the data due to the API interceptor
@@ -624,24 +948,108 @@ const Pickup = () => {
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Chargement des missions...</div>;
   }
-  if (error) {
-    return <div className="p-8 text-center text-red-500">{error}</div>;
-  }
 
   return (
     <div className="space-y-6">
+      {/* Debug Information - Only show in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <svg className="w-5 h-5 text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-blue-800">Debug Information</h3>
+              <div className="text-sm text-blue-700 mt-2 space-y-1">
+                <p><strong>User Role:</strong> {currentUser?.role || 'Not set'}</p>
+                <p><strong>User Agency:</strong> {currentUser?.agency || currentUser?.governorate || 'Not set'}</p>
+                <p><strong>Missions Count:</strong> {missions.length}</p>
+                <p><strong>Drivers Count:</strong> {drivers.length}</p>
+                <p><strong>Accepted Missions Count:</strong> {acceptedMissions.length}</p>
+                <p><strong>Stats Total:</strong> {stats.totalMissions}</p>
+                <p><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</p>
+                <p><strong>Error:</strong> {error || 'None'}</p>
+                <p><strong>Raw Missions Sample:</strong> {missions.length > 0 ? JSON.stringify(missions.slice(0, 2).map(m => ({ id: m.id, status: m.status, agency: m.agency }))) : 'No missions'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Display - Show errors but don't block the entire component */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start space-x-3">
+            <svg className="w-5 h-5 text-red-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800">Information</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+              {error.includes("Aucune mission de ramassage trouvée") && (
+                <div className="text-sm text-blue-600 mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-start space-x-2">
+                    <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="font-semibold text-blue-800">💡 Comment procéder :</p>
+                      <p className="mt-1">1. Cliquez sur <strong>"Nouvelle mission de collecte"</strong> ci-dessous</p>
+                      <p>2. Sélectionnez un livreur</p>
+                      <p>3. Choisissez les demandes acceptées à assigner</p>
+                      <p>4. Créez la mission de collecte</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header harmonisé */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestion des missions de collecte</h1>
           <p className="text-gray-600 mt-1">Assignez des missions acceptées aux livreurs pour la collecte</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-        >
-          Nouvelle mission de collecte
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => {
+              console.log('🔄 Manual refresh triggered');
+              // Force a re-fetch of data instead of page reload
+              setLoading(true);
+              setError(null);
+              // Trigger the useEffect by changing a dependency
+              setCurrentUser(prev => ({ ...prev }));
+            }}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            🔄 Actualiser
+          </button>
+          <button
+            onClick={async () => {
+              console.log('🧪 Testing API call manually...');
+              try {
+                const result = await pickupMissionsService.getPickupMissions();
+                console.log('✅ Manual API test result:', result);
+                alert(`API returned ${result.missions?.length || 0} missions. Check console for details.`);
+              } catch (error) {
+                console.error('❌ Manual API test failed:', error);
+                alert('API test failed. Check console for details.');
+              }
+            }}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            🧪 Test API
+          </button>
+          <button
+            onClick={handleAdd}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Nouvelle mission de collecte
+          </button>
+        </div>
       </div>
 
       {/* Dashboard Stats - Only for Admin and Chef d'agence */}
@@ -666,6 +1074,23 @@ const Pickup = () => {
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Agency Filter Indicator */}
+            {currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence') && (currentUser.agency || currentUser.governorate) && (
+              <div className="md:col-span-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-center space-x-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  <span className="text-sm font-medium text-blue-800">
+                    Affichage filtré : Missions de l'agence <span className="font-bold">{currentUser.agency || currentUser.governorate}</span>
+                  </span>
+                  <span className="px-2 py-1 bg-blue-200 text-blue-800 rounded-full text-xs font-medium">
+                    {getFilteredMissions().length} mission{getFilteredMissions().length !== 1 ? 's' : ''} visible{getFilteredMissions().length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            )}
+            
             {/* Total Missions */}
             <div 
               className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:scale-105 ${
@@ -758,6 +1183,23 @@ const Pickup = () => {
       )}
 
       {/* Tableau des missions */}
+      {/* Agency Filter Indicator for Missions Table */}
+      {currentUser && (currentUser.role === 'Chef d\'agence' || currentUser.role === 'Membre de l\'agence') && (currentUser.agency || currentUser.governorate) && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-center space-x-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-green-800">
+              Missions filtrées par agence : <span className="font-bold">{currentUser.agency || currentUser.governorate}</span>
+            </span>
+            <span className="px-2 py-1 bg-green-200 text-green-800 rounded-full text-xs font-medium">
+              {getFilteredMissions().length} mission{getFilteredMissions().length !== 1 ? 's' : ''} disponible{getFilteredMissions().length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+      
       {statusFilter && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <div className="flex items-center justify-between">

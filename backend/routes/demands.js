@@ -6,7 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Get all demands (with filtering for different user roles)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status = '', expediteur_email = '', exclude_in_missions = false } = req.query;
+    const { page = 1, limit = 10, status = '', expediteur_email = '', exclude_in_missions = false, agency_filter = '' } = req.query;
     const offset = (page - 1) * limit;
     
     let demandsSqlQuery = `
@@ -23,8 +23,12 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Exclude demands that are already in missions if requested
     if (exclude_in_missions === 'true') {
-      console.log('🔍 Filtering out demands that are already in missions (using in_mission field)...');
-      demandsSqlQuery += ` AND d.in_mission = FALSE`;
+      console.log('🔍 Filtering out demands that are already in missions (using mission_demands join)...');
+      demandsSqlQuery += ` AND NOT EXISTS (
+        SELECT 1 FROM mission_demands md 
+        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
+        WHERE md.demand_id = d.id AND pm.status IN ('En attente', 'Acceptée', 'En cours')
+      )`;
     }
     const queryParams = [];
     
@@ -42,18 +46,75 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Filter by agency for Chef d'agence and Membre d'agence
     if (req.user.role === 'Chef d\'agence' || req.user.role === 'Membre d\'agence') {
+      console.log('🔍 Filtering demands for Chef d\'agence/Membre d\'agence:', req.user.email);
+      
       // Get user's agency from agency_managers table
       const agencySqlQuery = `
-        SELECT agency FROM agency_managers 
-        WHERE email = $${queryParams.length + 1}
+        SELECT agency, governorate FROM agency_managers 
+        WHERE email = $1
       `;
       const agencyResult = await query(agencySqlQuery, [req.user.email]);
       
       if (agencyResult.rows.length > 0) {
         const userAgency = agencyResult.rows[0].agency;
-        demandsSqlQuery += ` AND d.expediteur_agency = $${queryParams.length + 1}`;
-        queryParams.push(userAgency);
+        const userGovernorate = agencyResult.rows[0].governorate;
+        console.log('🔍 User agency:', userAgency);
+        console.log('🔍 User governorate:', userGovernorate);
+        if (userAgency) {
+          const paramIndex = queryParams.length + 1;
+          demandsSqlQuery += ` AND ( 
+              LOWER(d.expediteur_agency) = LOWER($${paramIndex})
+           OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${paramIndex}) || '%'
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${paramIndex})
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${paramIndex})
+          )`;
+          queryParams.push(userAgency);
+          console.log('🔍 Added robust agency filter:', userAgency);
+        }
+      } else {
+        console.log('⚠️ No agency manager data found for user:', req.user.email);
+        // Fallback: use agency_filter param or users.agency
+        if (agency_filter) {
+          const paramIndex = queryParams.length + 1;
+          demandsSqlQuery += ` AND ( 
+              LOWER(d.expediteur_agency) = LOWER($${paramIndex})
+           OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${paramIndex}) || '%'
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${paramIndex})
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${paramIndex})
+          )`;
+          queryParams.push(agency_filter);
+          console.log('🔍 Using agency_filter fallback:', agency_filter);
+        } else {
+          const userAgencyRes = await query('SELECT agency FROM users WHERE email = $1', [req.user.email]);
+          const agencyFromUsers = userAgencyRes.rows[0]?.agency;
+          if (agencyFromUsers) {
+            const idx = queryParams.length + 1;
+            demandsSqlQuery += ` AND ( 
+                LOWER(d.expediteur_agency) = LOWER($${idx})
+             OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${idx}) || '%'
+             OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${idx})
+             OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${idx})
+            )`;
+            queryParams.push(agencyFromUsers);
+            console.log('🔍 Using users.agency fallback:', agencyFromUsers);
+          } else {
+            demandsSqlQuery += ` AND 1=0`;
+          }
+        }
       }
+    }
+
+    // Admin optional filter by agency
+    if ((req.user.role === 'Admin' || req.user.role === 'Administration') && agency_filter) {
+      const paramIndex = queryParams.length + 1;
+      demandsSqlQuery += ` AND ( 
+          LOWER(d.expediteur_agency) = LOWER($${paramIndex})
+       OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${paramIndex}) || '%'
+       OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${paramIndex})
+       OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${paramIndex})
+      )`;
+      queryParams.push(agency_filter);
+      console.log('🔍 Admin agency_filter applied:', agency_filter);
     }
     
     demandsSqlQuery += ` GROUP BY d.id, u.first_name, u.last_name
@@ -76,8 +137,12 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Exclude demands that are already in missions if requested
     if (exclude_in_missions === 'true') {
-      console.log('🔍 Filtering out demands that are already in missions (count query using in_mission field)...');
-      countSqlQuery += ` AND d.in_mission = FALSE`;
+      console.log('🔍 Filtering out demands that are already in missions (count query using mission_demands join)...');
+      countSqlQuery += ` AND NOT EXISTS (
+        SELECT 1 FROM mission_demands md 
+        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
+        WHERE md.demand_id = d.id AND pm.status IN ('En attente', 'Acceptée', 'En cours')
+      )`;
     }
     const countParams = [];
     
@@ -92,17 +157,60 @@ router.get('/', authenticateToken, async (req, res) => {
     }
     
     if (req.user.role === 'Chef d\'agence' || req.user.role === 'Membre d\'agence') {
+      console.log('🔍 Filtering count for Chef d\'agence/Membre d\'agence:', req.user.email);
+      
       const agencyCountSqlQuery = `
-        SELECT agency FROM agency_managers 
-        WHERE email = $${countParams.length + 1}
+        SELECT agency, governorate FROM agency_managers 
+        WHERE email = $1
       `;
       const agencyResult = await query(agencyCountSqlQuery, [req.user.email]);
       
       if (agencyResult.rows.length > 0) {
         const userAgency = agencyResult.rows[0].agency;
-        countSqlQuery += ` AND d.expediteur_agency = $${countParams.length + 1}`;
-        countParams.push(userAgency);
+        const userGovernorate = agencyResult.rows[0].governorate;
+        
+        console.log('🔍 Count query - User agency:', userAgency);
+        console.log('🔍 Count query - User governorate:', userGovernorate);
+        
+        // Filter by expediteur_agency - robust match in count query
+        if (userAgency) {
+          const countIdx = countParams.length + 1;
+          countSqlQuery += ` AND ( 
+              LOWER(d.expediteur_agency) = LOWER($${countIdx})
+           OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${countIdx}) || '%'
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${countIdx})
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${countIdx})
+          )`;
+          countParams.push(userAgency);
+          console.log('🔍 Added robust agency filter to count query:', userAgency);
+        }
+      } else {
+        console.log('⚠️ No agency manager data found for count query:', req.user.email);
+        if (agency_filter) {
+          const idx = countParams.length + 1;
+          countSqlQuery += ` AND ( 
+              LOWER(d.expediteur_agency) = LOWER($${idx})
+           OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${idx}) || '%'
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${idx})
+           OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${idx})
+          )`;
+          countParams.push(agency_filter);
+          console.log('🔍 Using agency_filter fallback in count:', agency_filter);
+        } else {
+          countSqlQuery += ` AND 1=0`;
+        }
       }
+    }
+
+    if ((req.user.role === 'Admin' || req.user.role === 'Administration') && agency_filter) {
+      const idx = countParams.length + 1;
+      countSqlQuery += ` AND ( 
+          LOWER(d.expediteur_agency) = LOWER($${idx})
+       OR LOWER(d.expediteur_agency) LIKE '%' || LOWER($${idx}) || '%'
+       OR LOWER(REPLACE(d.expediteur_agency, 'entrepôt ', '')) = LOWER($${idx})
+       OR LOWER(REPLACE(d.expediteur_agency, 'entrepot ', '')) = LOWER($${idx})
+      )`;
+      countParams.push(agency_filter);
     }
     
     console.log('🔍 DEBUG - Count SQL Query:', countSqlQuery);

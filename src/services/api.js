@@ -375,6 +375,25 @@ export const apiService = {
     return { success: true };
   },
 
+  // Get current user's real data from backend
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      console.log('🔍 Current user API response:', response);
+      
+      if (response && response.success && response.data) {
+        return response.data;
+      } else {
+        throw new Error('Failed to get current user data');
+      }
+    } catch (error) {
+      console.error('❌ Get current user error:', error);
+      // Fallback to localStorage if API fails
+      const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+      return user;
+    }
+  },
+
   // Parcels (Colis)
   getParcels: async (page = 1, limit = 100) => {
     try {
@@ -1962,7 +1981,9 @@ export const pickupMissionsService = {
     try {
       console.log('🔍 Calling pickup missions API with params:', params);
       const response = await api.get(`/pickup-missions?${params}`);
-      console.log('📡 Pickup Missions API response:', response);
+      console.log('📡 Pickup Missions API response (already processed by interceptor):', response);
+      console.log('📡 Pickup Missions API response.missions:', response?.missions);
+      console.log('📡 Pickup Missions API response.missions length:', response?.missions?.length);
       return response;
     } catch (error) {
       console.error('❌ Pickup Missions API error:', error);
@@ -2014,6 +2035,42 @@ export const pickupMissionsService = {
       return response;
     } catch (error) {
       console.error('❌ Available Livreurs API error:', error);
+      throw error;
+    }
+  },
+
+  getAcceptedDemands: async () => {
+    try {
+      console.log('🔍 Calling accepted demands API');
+      const response = await api.get('/pickup-missions/accepted-demands');
+      console.log('📡 Accepted Demands API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Accepted Demands API error:', error);
+      throw error;
+    }
+  },
+
+  deletePickupMission: async (id) => {
+    try {
+      console.log('🗑️ deletePickupMission called with id:', id);
+      const response = await api.delete(`/pickup-missions/${id}`);
+      console.log('📡 deletePickupMission response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ deletePickupMission error:', error);
+      throw error;
+    }
+  },
+
+  scanParcel: async (missionId, trackingNumber) => {
+    try {
+      console.log('📦 scanParcel called for mission:', missionId, 'tracking:', trackingNumber);
+      const response = await api.post(`/pickup-missions/${missionId}/scan-parcel`, { trackingNumber });
+      console.log('📡 scanParcel response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ scanParcel error:', error);
       throw error;
     }
   }

@@ -45,11 +45,14 @@ const Entrepots = () => {
   const [formData, setFormData] = useState({
     name: "",
     gouvernorat: "Tunis",
+    address: "",
     manager: "",
     assignedAgency: "",
+    sector: "",
     status: "Actif",
   });
   const [chefAgences, setChefAgences] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [colisModal, setColisModal] = useState({ open: false, status: null, colis: [] });
   const [factureColis, setFactureColis] = useState(null);
   const [bonLivraisonColis, setBonLivraisonColis] = useState(null);
@@ -144,13 +147,28 @@ const Entrepots = () => {
   };
 
 
-  // Get current user from localStorage on component mount
+  // Get current user's real data from API
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    setCurrentUser(user);
-    console.log('🔍 Current user:', user);
-    console.log('🔍 User role:', user?.role);
-    console.log('🔍 User email:', user?.email);
+    const fetchCurrentUser = async () => {
+      try {
+        const { apiService } = await import('../../services/api');
+        const user = await apiService.getCurrentUser();
+        setCurrentUser(user);
+        console.log('🔍 Current user from API:', user);
+        console.log('🔍 User role:', user?.role);
+        console.log('🔍 User email:', user?.email);
+        console.log('🔍 User governorate:', user?.governorate);
+        console.log('🔍 User agency:', user?.agency);
+      } catch (error) {
+        console.error('❌ Error fetching current user:', error);
+        // Fallback to localStorage
+        const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        setCurrentUser(user);
+        console.log('🔍 Current user from localStorage (fallback):', user);
+      }
+    };
+    
+    fetchCurrentUser();
   }, []);
 
   // Fetch warehouses data when currentUser is available
@@ -158,6 +176,7 @@ const Entrepots = () => {
     if (currentUser) {
       fetchWarehouses();
       fetchChefAgences();
+      fetchSectors();
     }
   }, [currentUser]);
 
@@ -194,44 +213,36 @@ const Entrepots = () => {
       let filteredWarehousesData = warehousesData;
       if (currentUser && currentUser.role === 'Chef d\'agence') {
         console.log('🔍 User is Chef d\'agence, applying agency filtering...');
+        console.log('🔍 User governorate from API:', currentUser.governorate);
+        console.log('🔍 User agency from API:', currentUser.agency);
         
-        try {
-          // Get user's agency from agency_managers table
-          const { apiService } = await import('../../services/api');
-          const agencyManagerResponse = await apiService.getAgencyManagers();
-          const agencyManager = agencyManagerResponse.find(am => am.email === currentUser.email);
+        if (currentUser.governorate) {
+          setUserAgency(currentUser.agency);
+          console.log('🔍 All warehouses before filtering:', warehousesData.map(w => ({ name: w.name, governorate: w.governorate })));
           
-          if (agencyManager) {
-            setUserAgency(agencyManager.agency);
-            console.log('🔍 User agency:', agencyManager.agency);
-            console.log('🔍 User governorate:', agencyManager.governorate);
-            console.log('🔍 All warehouses before filtering:', warehousesData.map(w => ({ name: w.name, governorate: w.governorate })));
+          // Filter warehouses by governorate - Chef d'agence should only see warehouses in their governorate
+          filteredWarehousesData = warehousesData.filter(warehouse => {
+            const warehouseGovernorate = warehouse.governorate;
+            const matchesAgency = warehouseGovernorate === currentUser.governorate;
             
-            // Filter warehouses by governorate (assuming governorate corresponds to agency)
-            // This is a simplified approach - you might need to adjust based on your data structure
-            filteredWarehousesData = warehousesData.filter(warehouse => {
-              const warehouseGovernorate = warehouse.governorate;
-              const matchesAgency = warehouseGovernorate === agencyManager.governorate;
-              
-              console.log(`🔍 Checking warehouse ${warehouse.name}: governorate="${warehouseGovernorate}" vs user governorate="${agencyManager.governorate}", matches=${matchesAgency}`);
-              
-              return matchesAgency;
-            });
+            console.log(`🔍 Checking warehouse ${warehouse.name}: governorate="${warehouseGovernorate}" vs user governorate="${currentUser.governorate}", matches=${matchesAgency}`);
             
-            console.log('🔍 Filtered warehouses count:', filteredWarehousesData.length);
-            console.log('🔍 Filtered warehouses:', filteredWarehousesData.map(w => ({ name: w.name, governorate: w.governorate })));
-            
-            // If no warehouses found for the specific governorate, show only Tunis Central warehouse
-            if (filteredWarehousesData.length === 0) {
-              console.log('⚠️ No warehouses found for governorate:', agencyManager.governorate);
-              console.log('⚠️ Showing only Tunis Central warehouse as fallback');
-              filteredWarehousesData = warehousesData.filter(warehouse => warehouse.name === 'Entrepôt Tunis Central');
-            }
-          } else {
-            console.log('⚠️ Agency manager not found for user:', currentUser.email);
+            return matchesAgency;
+          });
+          
+          console.log('🔍 Filtered warehouses count:', filteredWarehousesData.length);
+          console.log('🔍 Filtered warehouses:', filteredWarehousesData.map(w => ({ name: w.name, governorate: w.governorate })));
+          
+          // If no warehouses found for the specific governorate, show empty list
+          if (filteredWarehousesData.length === 0) {
+            console.log('⚠️ No warehouses found for governorate:', currentUser.governorate);
+            console.log('⚠️ Chef d\'agence will see empty warehouse list');
+            filteredWarehousesData = [];
           }
-        } catch (error) {
-          console.error('❌ Error fetching agency manager data:', error);
+        } else {
+          console.log('⚠️ User governorate not set for user:', currentUser.email);
+          // If governorate not set, show empty list for security
+          filteredWarehousesData = [];
         }
       } else {
         console.log('🔍 User is not Chef d\'agence, showing all warehouses');
@@ -253,6 +264,8 @@ const Entrepots = () => {
           capacity: warehouse.capacity || 100,
           current_stock: warehouse.current_stock || 0,
           manager_id: warehouse.manager_id,
+          sector: warehouse.sector_name || warehouse.sector || 'Non assigné',
+          sector_id: warehouse.sector_id,
           // Default statistics (will be updated when warehouse details are fetched)
           statistics: {
             totalPackages: 0,
@@ -296,23 +309,93 @@ const Entrepots = () => {
       const { warehousesService } = await import('../../services/api');
       const response = await warehousesService.getAvailableManagers();
       
-      if (response.success && response.data) {
-        const availableManagers = response.data.map(user => ({
+      console.log('🔍 Raw API response:', response);
+      console.log('🔍 Response type:', typeof response);
+      console.log('🔍 Is array:', Array.isArray(response));
+      console.log('🔍 Response length:', Array.isArray(response) ? response.length : 'Not an array');
+      
+      // Handle both object format {success, data} and direct array format
+      let userData = [];
+      if (response && response.success && response.data) {
+        // Object format: {success: true, data: [...]}
+        userData = response.data;
+        console.log('🔍 Using object format response');
+      } else if (Array.isArray(response)) {
+        // Direct array format: [...]
+        userData = response;
+        console.log('🔍 Using direct array format response');
+      }
+      
+      if (userData && userData.length > 0) {
+        let availableManagers = userData.map(user => ({
           id: user.id,
-          name: user.name,
+          name: user.name || `${user.first_name} ${user.last_name}`.trim(),
           email: user.email,
           phone: user.phone,
-          status: user.status
+          status: user.status || 'Actif',
+          governorate: user.governorate || 'Tunis' // Default governorate
         }));
+        
+        // If current user is Chef d'agence, filter managers by their governorate
+        if (currentUser && currentUser.role === 'Chef d\'agence') {
+          if (currentUser.governorate) {
+            console.log('🔍 Filtering managers by governorate:', currentUser.governorate);
+            availableManagers = availableManagers.filter(manager => 
+              manager.governorate === currentUser.governorate
+            );
+            console.log('🔍 Filtered managers count:', availableManagers.length);
+          } else {
+            console.log('⚠️ User governorate not set, showing all managers');
+          }
+        }
+        
         setChefAgences(availableManagers);
-        console.log('✅ Available Chef d\'agence users loaded:', availableManagers);
+        console.log('✅ Available Chef d\'agence users loaded:', availableManagers.length, 'users');
+        console.log('✅ Users:', availableManagers.map(u => `${u.name} (${u.email})`));
       } else {
         console.warn('⚠️ No available managers found or API error');
+        console.warn('⚠️ Response:', response);
         setChefAgences([]);
       }
     } catch (error) {
       console.error('❌ Error fetching available Chef d\'agence users:', error);
       setChefAgences([]);
+    }
+  };
+
+  const fetchSectors = async () => {
+    try {
+      console.log('🔍 Fetching available sectors...');
+      const { apiService } = await import('../../services/api');
+      const response = await apiService.getSectors();
+      
+      console.log('🔍 Sectors API response:', response);
+      
+      // Handle both object format {success, data} and direct array format
+      let sectorsData = [];
+      if (response && response.success && response.data) {
+        // Object format: {success: true, data: [...]}
+        sectorsData = response.data;
+        console.log('🔍 Using object format response for sectors');
+      } else if (Array.isArray(response)) {
+        // Direct array format: [...]
+        sectorsData = response;
+        console.log('🔍 Using direct array format response for sectors');
+      }
+      
+      if (sectorsData && sectorsData.length > 0) {
+        // Filter only active sectors
+        const activeSectors = sectorsData.filter(sector => sector.status === 'Actif');
+        setSectors(activeSectors);
+        console.log('✅ Available sectors loaded:', activeSectors.length, 'sectors');
+        console.log('✅ Sectors:', activeSectors.map(s => s.name));
+      } else {
+        console.warn('⚠️ No sectors found or API error');
+        setSectors([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching sectors:', error);
+      setSectors([]);
     }
   };
 
@@ -570,6 +653,7 @@ const Entrepots = () => {
     { key: "gouvernorat", header: "Gouvernorat" },
     { key: "address", header: "Adresse" },
     { key: "manager", header: "Responsable" },
+    { key: "sector", header: "Secteur" },
     {
       key: "actions",
       header: "Actions",
@@ -610,12 +694,14 @@ const Entrepots = () => {
       address: "",
       manager: "",
       assignedAgency: "",
+      sector: "",
       status: "Actif",
     });
     setIsModalOpen(true);
     
-    // Refresh available managers when opening the modal
+    // Refresh available managers and sectors when opening the modal
     await fetchChefAgences();
+    await fetchSectors();
   };
 
   const handleEdit = (warehouse) => {
@@ -626,6 +712,7 @@ const Entrepots = () => {
       address: warehouse.address || "",
       manager: warehouse.manager_id || warehouse.manager,
       assignedAgency: "",
+      sector: warehouse.sector || "",
       status: warehouse.status,
     });
     setIsModalOpen(true);
@@ -686,29 +773,19 @@ const Entrepots = () => {
         governorate: formData.gouvernorat,
         address: formData.address || '',
         manager_id: formData.manager || null,
+        sector_id: formData.sector || null,
         capacity: 100,
         status: formData.status
       };
 
-      // If a manager is selected and an agency is assigned, update the manager's agency
+      // Note: Agency assignment is handled automatically by the warehouse creation
+      // No need to manually update the user's agency field
       if (formData.manager && formData.assignedAgency) {
-        try {
-          console.log('🔧 Updating agency manager with new agency:', {
-            managerId: formData.manager,
-            newAgency: formData.assignedAgency
-          });
-          
-          const { apiService } = await import('../../services/api');
-          await apiService.updateAgencyManager(formData.manager, {
-            agency: formData.assignedAgency
-          });
-          
-          console.log('✅ Agency manager updated successfully');
-        } catch (error) {
-          console.error('❌ Error updating agency manager:', error);
-          alert('Erreur lors de la mise à jour de l\'agence du chef d\'agence');
-          return;
-        }
+        console.log('🔧 Warehouse will be assigned to manager:', {
+          managerId: formData.manager,
+          warehouseName: formData.name,
+          assignedAgency: formData.assignedAgency
+        });
       }
 
       if (editingWarehouse) {
@@ -1043,12 +1120,14 @@ const Entrepots = () => {
             </p>
           )}
         </div>
-        <button
-          onClick={handleAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-        >
-          Ajouter un entrepôt
-        </button>
+        {currentUser && currentUser.role !== 'Chef d\'agence' && (
+          <button
+            onClick={handleAdd}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Ajouter un entrepôt
+          </button>
+        )}
       </div>
 
       {/* Tableau des entrepôts */}
@@ -1278,18 +1357,18 @@ const Entrepots = () => {
               {chefAgences.length > 0 ? (
                 chefAgences.map((chef) => (
                   <option key={chef.id} value={chef.id}>
-                    {chef.name} - {chef.email} {chef.phone ? `(${chef.phone})` : ''}
+                    {chef.name} ({chef.role || 'N/A'}) - {chef.email} {chef.phone ? `(${chef.phone})` : ''}
                   </option>
                 ))
               ) : (
                 <option value="" disabled>
-                  Aucun Chef d'agence disponible
+                  Aucun responsable disponible
                 </option>
               )}
             </select>
             {chefAgences.length === 0 && (
               <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Tous les Chef d'agence sont déjà assignés à un entrepôt. Créez d'abord un nouveau Chef d'agence.
+                ⚠️ Tous les utilisateurs éligibles sont déjà assignés à un entrepôt. Créez d'abord un nouvel utilisateur avec un rôle approprié.
               </p>
             )}
           </div>
@@ -1308,6 +1387,35 @@ const Entrepots = () => {
             <p className="text-xs text-gray-500 mt-1">
               💡 Cette agence sera assignée au chef d'agence sélectionné
             </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Secteur
+            </label>
+            <select
+              name="sector"
+              value={formData.sector}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Sélectionnez un secteur</option>
+              {sectors.length > 0 ? (
+                sectors.map((sector) => (
+                  <option key={sector.id} value={sector.id}>
+                    {sector.name} {sector.city ? `(${sector.city})` : ''}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  Aucun secteur disponible
+                </option>
+              )}
+            </select>
+            {sectors.length === 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Aucun secteur actif trouvé. Créez d'abord des secteurs dans la section "Secteurs".
+              </p>
+            )}
           </div>
             <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1498,7 +1606,7 @@ const Entrepots = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Adresse:</label>
                   <p className="text-sm text-gray-900">{selectedParcel.adresse}</p>
-                </div>
+                  </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Désignation:</label>
                   <p className="text-sm text-gray-900">{selectedParcel.designation}</p>

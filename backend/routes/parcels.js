@@ -27,12 +27,49 @@ router.get('/', async (req, res) => {
         s.company_governorate as shipper_company_governorate,
         s.company_address as shipper_company_address,
         s.city as shipper_city,
-        s.agency as shipper_agency
+        s.agency as shipper_agency,
+        w.name as warehouse_name,
+        w.governorate as warehouse_governorate,
+        w.address as warehouse_address
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
+      LEFT JOIN warehouses w ON p.warehouse_id = w.id
       WHERE 1=1
     `;
     const queryParams = [];
+    
+    // Role-based filtering
+    if (req.user?.role === 'Chef d\'agence' || req.user?.role === 'Membre d\'agence') {
+      const agencyResult = await db.query(`SELECT agency FROM agency_managers WHERE email = $1`, [req.user.email]);
+      if (agencyResult.rows.length > 0) {
+        const userAgency = agencyResult.rows[0].agency;
+        if (userAgency) {
+          query += ` AND w.name = $${queryParams.length + 1}`;
+          queryParams.push(userAgency);
+          console.log('🔍 Filtering parcels by warehouse name:', userAgency);
+        } else {
+          query += ` AND 1=0`; // Show no parcels if no agency data
+        }
+      } else {
+        query += ` AND 1=0`; // Show no parcels if no agency manager found
+      }
+    } else if (req.user?.role === 'Commercial') {
+      // For Commercial users, show parcels from their assigned agency
+      const commercialResult = await db.query(`SELECT agency FROM commercials WHERE email = $1`, [req.user.email]);
+      if (commercialResult.rows.length > 0) {
+        const commercialAgency = commercialResult.rows[0].agency;
+        if (commercialAgency) {
+          query += ` AND w.name = $${queryParams.length + 1}`;
+          queryParams.push(commercialAgency);
+          console.log('🔍 Filtering parcels by commercial agency:', commercialAgency);
+        } else {
+          query += ` AND 1=0`;
+        }
+      } else {
+        query += ` AND 1=0`;
+      }
+    }
+    // Admin users see all parcels (no additional filtering)
     
     if (search) {
       query += ` AND (p.tracking_number ILIKE $${queryParams.length + 1} OR p.destination ILIKE $${queryParams.length + 1} OR s.name ILIKE $${queryParams.length + 1} OR s.code ILIKE $${queryParams.length + 1})`;
@@ -59,6 +96,7 @@ router.get('/', async (req, res) => {
       SELECT COUNT(*) 
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
+      LEFT JOIN warehouses w ON p.warehouse_id = w.id
       WHERE 1=1
     `;
     const countParams = [];
@@ -139,9 +177,13 @@ router.get('/expediteur/:email', async (req, res) => {
         s.company_governorate as shipper_company_governorate,
         s.company_address as shipper_company_address,
         s.city as shipper_city,
-        s.agency as shipper_agency
+        s.agency as shipper_agency,
+        w.name as warehouse_name,
+        w.governorate as warehouse_governorate,
+        w.address as warehouse_address
       FROM parcels p
       LEFT JOIN shippers s ON p.shipper_id = s.id
+      LEFT JOIN warehouses w ON p.warehouse_id = w.id
       WHERE p.shipper_id = $1
       ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
@@ -723,28 +765,81 @@ router.post('/', async (req, res) => {
     console.log('📦 nb_pieces after destructuring:', nb_pieces);
     console.log('📦 nb_pieces type:', typeof nb_pieces);
     
+    // Get shipper's agency and find matching warehouse
+    console.log('🏢 Getting shipper agency and matching warehouse...');
+    const shipperResult = await db.query(`
+      SELECT s.agency, s.default_warehouse_id
+      FROM shippers s
+      WHERE s.id = $1
+    `, [shipper_id]);
+    
+    let warehouse_id = null;
+    let warehouse_name = null;
+    
+    if (shipperResult.rows.length > 0) {
+      const shipperAgency = shipperResult.rows[0].agency;
+      console.log(`🏢 Shipper agency: ${shipperAgency}`);
+      
+      if (shipperAgency) {
+        // Try to find warehouse by exact name match first
+        let warehouseResult = await db.query(`
+          SELECT id, name FROM warehouses WHERE name = $1
+        `, [shipperAgency]);
+        
+        if (warehouseResult.rows.length === 0) {
+          // If no exact match, try to find warehouse that contains the agency name
+          warehouseResult = await db.query(`
+            SELECT id, name FROM warehouses 
+            WHERE name ILIKE $1 OR name ILIKE $2
+          `, [`%${shipperAgency}%`, `Entrepôt ${shipperAgency}%`]);
+        }
+        
+        if (warehouseResult.rows.length > 0) {
+          warehouse_id = warehouseResult.rows[0].id;
+          warehouse_name = warehouseResult.rows[0].name;
+          console.log(`🏢 Found matching warehouse: ${warehouse_name} (ID: ${warehouse_id})`);
+          
+          // Update shipper's default_warehouse_id for future parcels
+          await db.query(`
+            UPDATE shippers 
+            SET default_warehouse_id = $1, updated_at = NOW()
+            WHERE id = $2
+          `, [warehouse_id, shipper_id]);
+          console.log(`✅ Updated shipper's default warehouse`);
+        } else {
+          console.log(`❌ No warehouse found for agency: ${shipperAgency}`);
+        }
+      } else {
+        console.log('⚠️ Shipper has no agency, parcel will be created without warehouse assignment');
+      }
+    } else {
+      console.log('⚠️ Shipper not found, parcel will be created without warehouse assignment');
+    }
+    
     const result = await db.query(`
       INSERT INTO parcels (
         tracking_number, shipper_id, destination, status, weight, price, type,
         estimated_delivery_date, delivery_fees, return_fees,
         recipient_name, recipient_phone, recipient_phone2, recipient_address, recipient_governorate,
-        article_name, remark, nb_pieces, client_code
+        article_name, remark, nb_pieces, client_code, warehouse_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [tracking_number, shipper_id, destination, status, weight, price, type, 
         estimated_delivery_date, delivery_fees, return_fees,
         recipient_name, recipient_phone, recipient_phone2, recipient_address, recipient_governorate,
-        article_name, remark, nb_pieces, client_code]);
+        article_name, remark, nb_pieces, client_code, warehouse_id]);
     
     console.log('✅ Parcel created:', result.rows[0]);
     console.log('🔐 Client code generated:', client_code);
+    console.log('🏢 Warehouse assigned:', warehouse_name);
     
     res.status(201).json({
       success: true,
       data: result.rows[0],
       message: 'Parcel created successfully',
-      client_code: client_code
+      client_code: client_code,
+      warehouse_assigned: warehouse_name
     });
   } catch (error) {
     console.error('Create parcel error:', error);

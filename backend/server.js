@@ -100,11 +100,9 @@ app.get('/api/test-file/:filename', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', authenticateToken, dashboardRoutes);
-// Temporarily disable auth for personnel routes for testing
-app.use('/api/personnel', personnelRoutes);
-app.use('/api/shippers', shippersRoutes);
-// Temporarily disable auth for parcels routes for testing expediteur parcels
-app.use('/api/parcels', parcelsRoutes);
+app.use('/api/personnel', authenticateToken, personnelRoutes);
+app.use('/api/shippers', authenticateToken, shippersRoutes);
+app.use('/api/parcels', authenticateToken, parcelsRoutes);
 app.use('/api/missions', authenticateToken, missionsRoutes);
 app.use('/api/sectors', authenticateToken, sectorsRoutes);
 app.use('/api/warehouses', warehousesRoutes);

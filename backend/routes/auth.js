@@ -355,4 +355,62 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
+// Get current user's real data (including governorate and agency)
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Get user data with agency manager information
+    const userResult = await db.query(`
+      SELECT 
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        u.is_active,
+        r.name as role,
+        am.agency,
+        am.governorate,
+        am.address as user_address
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN agency_managers am ON u.email = am.email
+      WHERE u.id = $1
+    `, [decoded.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        is_active: user.is_active,
+        agency: user.agency,
+        governorate: user.governorate,
+        address: user.user_address
+      }
+    });
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Update User Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Update User Data in localStorage</h1>
+    
+    <div id="status"></div>
+    
+    <div id="currentData">
+        <h3>Current localStorage data:</h3>
+        <pre id="currentUserData"></pre>
+    </div>
+    
+    <div id="newData">
+        <h3>New data to set:</h3>
+        <pre id="newUserData"></pre>
+    </div>
+    
+    <button onclick="updateUserData()">Update localStorage</button>
+    <button onclick="goToDashboard()">Go to Dashboard</button>
+    
+    <script>
+        const newUserData = {"id":316,"first_name":"Saadaoui","last_name":"Ossama","email":"saadaouiossama@gmail.com","phone":"+21694329567","role":"Chef d'agence","is_active":true,"agency":"Entrepôt Beja","governorate":"Béja","address":null};
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<div class="' + type + '">' + message + '</div>';
+        }
+        
+        function showCurrentData() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            document.getElementById('currentUserData').textContent = JSON.stringify(currentUser, null, 2);
+        }
+        
+        function showNewData() {
+            document.getElementById('newUserData').textContent = JSON.stringify(newUserData, null, 2);
+        }
+        
+        function updateUserData() {
+            try {
+                // Update localStorage
+                localStorage.setItem('currentUser', JSON.stringify(newUserData));
+                
+                showStatus('✅ User data updated successfully in localStorage!', 'success');
+                showCurrentData();
+                
+                console.log('Updated user data:', newUserData);
+            } catch (error) {
+                showStatus('❌ Error updating localStorage: ' + error.message, 'error');
+            }
+        }
+        
+        function goToDashboard() {
+            window.location.href = '/dashboard';
+        }
+        
+        // Show initial data
+        showCurrentData();
+        showNewData();
+        showStatus('Ready to update user data. Click "Update localStorage" to proceed.', 'info');
+    </script>
+</body>
+</html>

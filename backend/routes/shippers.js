@@ -26,6 +26,10 @@ router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (page - 1) * limit;
+    
+    console.log('🔍 Shippers API - User role:', req.user?.role);
+    console.log('🔍 Shippers API - User email:', req.user?.email);
+    
     let query = `
       SELECT s.*,
              CASE WHEN s.password IS NOT NULL THEN true ELSE false END as has_password,
@@ -53,8 +57,68 @@ router.get('/', async (req, res) => {
       WHERE 1=1
     `;
     const queryParams = [];
+    
+    // Filter by user role
+    if (req.user?.role === 'Chef d\'agence' || req.user?.role === 'Membre d\'agence') {
+      console.log('🔍 Filtering shippers for Chef d\'agence/Membre d\'agence');
+      
+      // Get user's agency from agency_managers table
+      const agencySqlQuery = `
+        SELECT agency FROM agency_managers 
+        WHERE email = $${queryParams.length + 1}
+      `;
+      const agencyResult = await db.query(agencySqlQuery, [req.user.email]);
+      
+      if (agencyResult.rows.length > 0) {
+        const userAgency = agencyResult.rows[0].agency;
+        console.log('🔍 User agency:', userAgency);
+        
+        // Filter shippers by agency
+        if (userAgency) {
+          query += ` AND s.agency = $${queryParams.length + 1}`;
+          queryParams.push(userAgency);
+          console.log('🔍 Added agency filter:', userAgency);
+        }
+      } else {
+        console.log('⚠️ No agency manager data found for user:', req.user.email);
+        // If no agency data, show no shippers for security
+        query += ` AND 1=0`;
+      }
+    } else if (req.user?.role === 'Commercial') {
+      console.log('🔍 Filtering shippers for Commercial');
+      
+      // Get commercial's assigned shippers
+      const commercialSqlQuery = `
+        SELECT id FROM commercials 
+        WHERE email = $${queryParams.length + 1}
+      `;
+      const commercialResult = await db.query(commercialSqlQuery, [req.user.email]);
+      
+      if (commercialResult.rows.length > 0) {
+        const commercialId = commercialResult.rows[0].id;
+        console.log('🔍 Commercial ID:', commercialId);
+        
+        // Filter shippers by commercial_id
+        query += ` AND s.commercial_id = $${queryParams.length + 1}`;
+        queryParams.push(commercialId);
+        console.log('🔍 Added commercial filter:', commercialId);
+      } else {
+        console.log('⚠️ No commercial data found for user:', req.user.email);
+        // If no commercial data, show no shippers for security
+        query += ` AND 1=0`;
+      }
+    } else if (req.user?.role === 'Expéditeur') {
+      console.log('🔍 Filtering shippers for Expéditeur - showing only their own data');
+      
+      // Expéditeur can only see their own data
+      query += ` AND s.email = $${queryParams.length + 1}`;
+      queryParams.push(req.user.email);
+      console.log('🔍 Added email filter for expéditeur:', req.user.email);
+    }
+    // Admin users can see all shippers (no additional filter)
+    
     if (search) {
-      query += ` AND (s.name ILIKE $1 OR s.email ILIKE $1 OR s.code ILIKE $1)`;
+      query += ` AND (s.name ILIKE $${queryParams.length + 1} OR s.email ILIKE $${queryParams.length + 1} OR s.code ILIKE $${queryParams.length + 1})`;
       queryParams.push(`%${search}%`);
     }
     query += ` ORDER BY s.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
@@ -79,8 +143,55 @@ router.get('/', async (req, res) => {
     // Get total count
     let countQuery = `SELECT COUNT(*) FROM shippers WHERE 1=1`;
     const countParams = [];
+    
+    // Apply the same filtering logic to count query
+    if (req.user?.role === 'Chef d\'agence' || req.user?.role === 'Membre d\'agence') {
+      // Get user's agency from agency_managers table
+      const agencyCountSqlQuery = `
+        SELECT agency FROM agency_managers 
+        WHERE email = $${countParams.length + 1}
+      `;
+      const agencyResult = await db.query(agencyCountSqlQuery, [req.user.email]);
+      
+      if (agencyResult.rows.length > 0) {
+        const userAgency = agencyResult.rows[0].agency;
+        
+        // Filter shippers by agency
+        if (userAgency) {
+          countQuery += ` AND agency = $${countParams.length + 1}`;
+          countParams.push(userAgency);
+        }
+      } else {
+        // If no agency data, show no shippers for security
+        countQuery += ` AND 1=0`;
+      }
+    } else if (req.user?.role === 'Commercial') {
+      // Get commercial's assigned shippers
+      const commercialCountSqlQuery = `
+        SELECT id FROM commercials 
+        WHERE email = $${countParams.length + 1}
+      `;
+      const commercialResult = await db.query(commercialCountSqlQuery, [req.user.email]);
+      
+      if (commercialResult.rows.length > 0) {
+        const commercialId = commercialResult.rows[0].id;
+        
+        // Filter shippers by commercial_id
+        countQuery += ` AND commercial_id = $${countParams.length + 1}`;
+        countParams.push(commercialId);
+      } else {
+        // If no commercial data, show no shippers for security
+        countQuery += ` AND 1=0`;
+      }
+    } else if (req.user?.role === 'Expéditeur') {
+      // Expéditeur can only see their own data
+      countQuery += ` AND email = $${countParams.length + 1}`;
+      countParams.push(req.user.email);
+    }
+    // Admin users can see all shippers (no additional filter)
+    
     if (search) {
-      countQuery += ` AND (name ILIKE $1 OR email ILIKE $1 OR code ILIKE $1)`;
+      countQuery += ` AND (name ILIKE $${countParams.length + 1} OR email ILIKE $${countParams.length + 1} OR code ILIKE $${countParams.length + 1})`;
       countParams.push(`%${search}%`);
     }
     const countResult = await db.query(countQuery, countParams);

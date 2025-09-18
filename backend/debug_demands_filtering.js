@@ -1,129 +1,185 @@
-const { pool } = require('./config/database');
+const db = require('./config/database');
 
-async function debugDemandsFiltering() {
-  const client = await pool.connect();
-  
+const debugDemandsFiltering = async () => {
   try {
-    console.log('🔍 Debugging demands filtering...\n');
+    console.log('🔍 Debugging demands filtering for Chef d\'agence...\n');
+
+    const userEmail = 'bensalah@quickzone.tn'; // The Chef d'agence from the image
     
-    // 1. Get all demands with "Accepted" status
-    console.log('📋 1. All demands with "Accepted" status:');
-    const acceptedDemands = await client.query(`
-      SELECT id, expediteur_name, expediteur_email, status, created_at
-      FROM demands 
-      WHERE status = 'Accepted'
-      ORDER BY id
-    `);
+    console.log('📋 Checking user data for:', userEmail);
+    console.log('-' .repeat(50));
     
-    console.log(`Found ${acceptedDemands.rows.length} accepted demands:`);
-    acceptedDemands.rows.forEach(demand => {
-      console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Email: ${demand.expediteur_email}`);
-    });
-    
-    // 2. Get all pickup missions
-    console.log('\n📋 2. All pickup missions:');
-    const missions = await client.query(`
-      SELECT id, status, created_at
-      FROM pickup_missions
-      ORDER BY id
-    `);
-    
-    console.log(`Found ${missions.rows.length} pickup missions:`);
-    missions.rows.forEach(mission => {
-      console.log(`  - ID: ${mission.id}, Status: ${mission.status}`);
-    });
-    
-    // 3. Get all mission_demands relationships
-    console.log('\n📋 3. All mission_demands relationships:');
-    const missionDemands = await client.query(`
-      SELECT md.mission_id, md.demand_id, pm.status as mission_status
-      FROM mission_demands md
-      INNER JOIN pickup_missions pm ON md.mission_id = pm.id
-      ORDER BY md.mission_id, md.demand_id
-    `);
-    
-    console.log(`Found ${missionDemands.rows.length} mission-demand relationships:`);
-    missionDemands.rows.forEach(rel => {
-      console.log(`  - Mission ${rel.mission_id} (${rel.mission_status}) -> Demand ${rel.demand_id}`);
-    });
-    
-    // 4. Check which demands should be filtered out
-    console.log('\n📋 4. Demands that should be filtered out (already in active missions):');
-    const filteredDemands = await client.query(`
-      SELECT DISTINCT d.id, d.expediteur_name, d.expediteur_email
-      FROM demands d
-      INNER JOIN mission_demands md ON d.id = md.demand_id
-      INNER JOIN pickup_missions pm ON md.mission_id = pm.id
-      WHERE d.status = 'Accepted' 
-      AND pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
-      ORDER BY d.id
-    `);
-    
-    console.log(`Found ${filteredDemands.rows.length} demands that should be filtered out:`);
-    filteredDemands.rows.forEach(demand => {
-      console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Email: ${demand.expediteur_email}`);
-    });
-    
-    // 5. Check which demands should be available (not in missions)
-    console.log('\n📋 5. Demands that should be available (not in active missions):');
-    const availableDemands = await client.query(`
-      SELECT d.id, d.expediteur_name, d.expediteur_email
-      FROM demands d
-      WHERE d.status = 'Accepted' 
-      AND d.id NOT IN (
-        SELECT DISTINCT md.demand_id 
-        FROM mission_demands md 
-        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
-        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
-      )
-      ORDER BY d.id
-    `);
-    
-    console.log(`Found ${availableDemands.rows.length} demands that should be available:`);
-    availableDemands.rows.forEach(demand => {
-      console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Email: ${demand.expediteur_email}`);
-    });
-    
-    // 6. Check the exact query that should be used
-    console.log('\n📋 6. Testing the exact query used by the API:');
-    const testQuery = await client.query(`
+    // Check the user data
+    const userResult = await db.query(`
       SELECT 
-        d.*,
-        u.first_name as reviewer_first_name,
-        u.last_name as reviewer_last_name,
-        COALESCE(COUNT(dp.parcel_id), 0) as parcel_count
-      FROM demands d
-      LEFT JOIN users u ON d.reviewed_by = u.id
-      LEFT JOIN demand_parcels dp ON d.id = dp.demand_id
-      WHERE d.status = 'Accepted'
-      AND d.id NOT IN (
-        SELECT DISTINCT md.demand_id 
-        FROM mission_demands md 
-        INNER JOIN pickup_missions pm ON md.mission_id = pm.id 
-        WHERE pm.status IN ('En attente', 'À enlever', 'Enlevé', 'Au dépôt')
-      )
-      GROUP BY d.id, u.first_name, u.last_name
-      ORDER BY d.created_at DESC
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        r.name as role
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.email = $1
+    `, [userEmail]);
+    
+    if (userResult.rows.length > 0) {
+      console.log('✅ User found:', userResult.rows[0]);
+    } else {
+      console.log('❌ User not found');
+      return;
+    }
+
+    // Check agency managers table for this user
+    console.log('\n📋 Checking agency managers table...');
+    console.log('-' .repeat(50));
+    
+    const agencyManagerResult = await db.query(`
+      SELECT 
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        r.name as role,
+        am.agency,
+        am.governorate
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN agency_managers am ON u.email = am.email
+      WHERE u.email = $1
+    `, [userEmail]);
+    
+    if (agencyManagerResult.rows.length > 0) {
+      const user = agencyManagerResult.rows[0];
+      console.log('✅ Agency manager data:', user);
+      console.log('📍 User governorate:', user.governorate);
+      console.log('🏢 User agency:', user.agency);
+    } else {
+      console.log('❌ No agency manager data found');
+    }
+
+    // Check demands table structure
+    console.log('\n📋 Checking demands table structure...');
+    console.log('-' .repeat(50));
+    
+    const tableStructureResult = await db.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'demands'
+      ORDER BY ordinal_position
     `);
     
-    console.log(`API query returns ${testQuery.rows.length} demands:`);
-    testQuery.rows.forEach(demand => {
-      console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Email: ${demand.expediteur_email}`);
+    console.log('📋 Demands table columns:');
+    tableStructureResult.rows.forEach(col => {
+      console.log(`  - ${col.column_name}: ${col.data_type} (${col.is_nullable === 'YES' ? 'nullable' : 'not null'})`);
     });
+
+    // Check all demands
+    console.log('\n📋 Checking all demands...');
+    console.log('-' .repeat(50));
     
+    const allDemandsResult = await db.query(`
+      SELECT 
+        d.id,
+        d.expediteur_email,
+        d.expediteur_name,
+        d.expediteur_agency,
+        d.status,
+        d.created_at
+      FROM demands d
+      ORDER BY d.created_at DESC
+      LIMIT 10
+    `);
+    
+    console.log('📋 Sample demands:');
+    allDemandsResult.rows.forEach(demand => {
+      console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name} (${demand.expediteur_email}), Agency: ${demand.expediteur_agency}, Status: ${demand.status}`);
+    });
+
+    // Check shippers table to understand the relationship
+    console.log('\n📋 Checking shippers table...');
+    console.log('-' .repeat(50));
+    
+    const shippersResult = await db.query(`
+      SELECT 
+        s.id,
+        s.name,
+        s.email,
+        s.agency,
+        s.governorate
+      FROM shippers s
+      ORDER BY s.name
+      LIMIT 10
+    `);
+    
+    console.log('📋 Sample shippers:');
+    shippersResult.rows.forEach(shipper => {
+      console.log(`  - ID: ${shipper.id}, Name: ${shipper.name}, Email: ${shipper.email}, Agency: ${shipper.agency}, Governorate: ${shipper.governorate}`);
+    });
+
+    // Test the filtering logic
+    console.log('\n📋 Testing filtering logic...');
+    console.log('-' .repeat(50));
+    
+    if (agencyManagerResult.rows.length > 0) {
+      const user = agencyManagerResult.rows[0];
+      const userAgency = user.agency;
+      const userGovernorate = user.governorate;
+      
+      console.log('🔍 User agency:', userAgency);
+      console.log('🔍 User governorate:', userGovernorate);
+      
+      // Test filtering by expediteur_agency
+      if (userAgency) {
+        const filteredDemandsResult = await db.query(`
+          SELECT 
+            d.id,
+            d.expediteur_email,
+            d.expediteur_name,
+            d.expediteur_agency,
+            d.status,
+            d.created_at
+          FROM demands d
+          WHERE d.expediteur_agency = $1
+          ORDER BY d.created_at DESC
+        `, [userAgency]);
+        
+        console.log(`✅ Demands filtered by agency "${userAgency}": ${filteredDemandsResult.rows.length} demands`);
+        filteredDemandsResult.rows.forEach(demand => {
+          console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Agency: ${demand.expediteur_agency}, Status: ${demand.status}`);
+        });
+      }
+      
+      // Test filtering by governorate (alternative approach)
+      if (userGovernorate) {
+        const governorateFilteredResult = await db.query(`
+          SELECT 
+            d.id,
+            d.expediteur_email,
+            d.expediteur_name,
+            d.expediteur_agency,
+            d.status,
+            d.created_at
+          FROM demands d
+          WHERE d.expediteur_agency LIKE $1
+          ORDER BY d.created_at DESC
+        `, [`%${userGovernorate}%`]);
+        
+        console.log(`✅ Demands filtered by governorate "${userGovernorate}": ${governorateFilteredResult.rows.length} demands`);
+        governorateFilteredResult.rows.forEach(demand => {
+          console.log(`  - ID: ${demand.id}, Expéditeur: ${demand.expediteur_name}, Agency: ${demand.expediteur_agency}, Status: ${demand.status}`);
+        });
+      }
+    }
+
   } catch (error) {
     console.error('❌ Error debugging demands filtering:', error);
   } finally {
-    client.release();
-  }
-}
-
-debugDemandsFiltering()
-  .then(() => {
-    console.log('\n✅ Debug completed');
     process.exit(0);
-  })
-  .catch((error) => {
-    console.error('💥 Debug failed:', error);
-    process.exit(1);
-  }); 
+  }
+};
+
+debugDemandsFiltering(); 

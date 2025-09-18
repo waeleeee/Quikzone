@@ -16,7 +16,7 @@ const Expediteur = () => {
   const location = useLocation();
   
   // Get current user to check role
-  const [currentUser] = useState(() => {
+  const [currentUser, setCurrentUser] = useState(() => {
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
     return user;
   });
@@ -63,6 +63,23 @@ const Expediteur = () => {
   const [isColisModalOpen, setIsColisModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [editingColis, setEditingColis] = useState(null);
+
+  // Fetch real-time current user data
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        console.log('🔍 Fetching real-time current user data...');
+        const realUserData = await apiService.getCurrentUser();
+        console.log('🔍 Real-time user data:', realUserData);
+        setCurrentUser(realUserData);
+      } catch (error) {
+        console.error('❌ Error fetching real-time user data:', error);
+        // Keep the localStorage data as fallback
+      }
+    };
+    
+    fetchCurrentUser();
+  }, []);
 
   // Check if we should open add modal from dashboard navigation
   useEffect(() => {
@@ -143,40 +160,10 @@ const Expediteur = () => {
             shippersData = [];
           }
         } else if (user && user.role === 'Chef d\'agence') {
-          // For Chef d'agence, get all shippers first, then filter by agency
-          console.log('🔍 User is Chef d\'agence, applying filtering...');
+          // For Chef d'agence, let the backend handle filtering
+          console.log('🔍 User is Chef d\'agence, backend will filter automatically...');
           shippersData = await apiService.getShippers();
-          console.log('🔍 All shippers data before filtering:', shippersData);
-          
-          // Get the user's agency from the agency_managers table
-          try {
-            console.log('🔍 Fetching agency managers for filtering...');
-            const agencyManagerResponse = await apiService.getAgencyManagers();
-            console.log('🔍 All agency managers response:', agencyManagerResponse);
-            
-            const agencyManager = agencyManagerResponse.find(am => am.email === user.email);
-            console.log('🔍 Looking for agency manager with email:', user.email);
-            console.log('🔍 Found agency manager:', agencyManager);
-            
-            if (agencyManager) {
-              console.log('🔍 Agency manager found:', agencyManager);
-              console.log('🔍 Agency manager agency:', agencyManager.agency);
-              
-              // Filter shippers by agency
-              shippersData = shippersData.filter(shipper => {
-                console.log(`🔍 Checking shipper ${shipper.name}: shipper.agency="${shipper.agency}" vs agencyManager.agency="${agencyManager.agency}"`);
-                const matches = shipper.agency === agencyManager.agency;
-                console.log(`🔍 Match result: ${matches}`);
-                return matches;
-              });
-              console.log('🔍 Filtered shippers count:', shippersData.length);
-              console.log('🔍 Filtered shippers:', shippersData);
-            } else {
-              console.log('⚠️ Agency manager not found for user:', user.email);
-            }
-          } catch (error) {
-            console.error('❌ Error fetching agency manager data:', error);
-          }
+          console.log('🔍 Backend-filtered shippers data:', shippersData);
         } else {
           // For admin users, get all shippers
           shippersData = await apiService.getShippers();
@@ -398,17 +385,24 @@ const Expediteur = () => {
         console.error('Error finding commercial:', error);
       }
     } else if (currentUser && currentUser.role === 'Chef d\'agence') {
-      // For Chef d'agence, get their agency from the agency_managers table
+      // For Chef d'agence, get their real-time agency data from the API
       try {
-        const agencyManagerResponse = await apiService.getAgencyManagers();
-        const agencyManager = agencyManagerResponse.find(am => am.email === currentUser.email);
+        console.log('🔍 Getting real-time user data for Chef d\'agence...');
+        const realUserData = await apiService.getCurrentUser();
+        console.log('🔍 Real user data:', realUserData);
         
-        if (agencyManager) {
-          defaultAgency = agencyManager.agency;
-          console.log('🔍 Setting agency for new shipper:', defaultAgency);
+        if (realUserData && realUserData.agency) {
+          defaultAgency = realUserData.agency;
+          console.log('🔍 Setting agency for new shipper from real data:', defaultAgency);
+        } else {
+          console.log('⚠️ No agency found in real user data, falling back to localStorage');
+          // Fallback to localStorage if API fails
+          defaultAgency = currentUser.agency || "";
         }
       } catch (error) {
-        console.error('Error fetching agency manager data:', error);
+        console.error('Error fetching real user data:', error);
+        // Fallback to localStorage if API fails
+        defaultAgency = currentUser.agency || "";
       }
     }
     

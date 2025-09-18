@@ -97,13 +97,44 @@ const DashboardHome = () => {
       setLoading(true);
       const data = await apiService.getAdminDashboard();
       if (data && data.success && data.data) {
-        setAdminChartData(data.data);
+        let incoming = data.data;
+        // Ensure keyMetrics exists
+        if (!incoming.keyMetrics) incoming.keyMetrics = {};
+        // If monthlyRevenue missing or zero, compute a fallback from parcels
+        if (!incoming.keyMetrics.monthlyRevenue || Number(incoming.keyMetrics.monthlyRevenue) === 0) {
+          try {
+            const parcels = await apiService.getParcels(1, 2000);
+            const now = new Date();
+            const month = now.getMonth();
+            const year = now.getFullYear();
+            const monthlyRevenue = parcels.reduce((sum, p) => {
+              const updatedAt = p.updated_at || p.created_at;
+              const d = updatedAt ? new Date(updatedAt) : null;
+              const isThisMonth = d && d.getMonth() === month && d.getFullYear() === year;
+              const isPaidDelivered = p.status === 'Livrés payés' || p.status === 'Livrés Payés' || p.status === 'Livrés payé';
+              if (isThisMonth && isPaidDelivered) {
+                const deliveryFee = parseFloat(p.delivery_fee) || 0;
+                const price = parseFloat(p.price) || 0;
+                // Prefer delivery fee if present, otherwise fall back to price
+                return sum + (deliveryFee > 0 ? deliveryFee : price);
+              }
+              return sum;
+            }, 0);
+            incoming.keyMetrics.monthlyRevenue = monthlyRevenue;
+          } catch (e) {
+            console.warn('Failed to compute fallback monthly revenue:', e);
+          }
+        }
+        setAdminChartData(incoming);
       } else {
         // Create sample admin chart data
         setAdminChartData({
           deliveryHistory: generateSampleDeliveryHistory(),
           geographicalData: generateSampleGeographicalData(),
-          statusStats: generateSampleStatusStats()
+          statusStats: generateSampleStatusStats(),
+          keyMetrics: {
+            monthlyRevenue: generateSampleGeographicalData().reduce((s, r) => s + r.count, 0)
+          }
         });
       }
     } catch (error) {
@@ -112,7 +143,10 @@ const DashboardHome = () => {
       setAdminChartData({
         deliveryHistory: generateSampleDeliveryHistory(),
         geographicalData: generateSampleGeographicalData(),
-        statusStats: generateSampleStatusStats()
+        statusStats: generateSampleStatusStats(),
+        keyMetrics: {
+          monthlyRevenue: generateSampleGeographicalData().reduce((s, r) => s + r.count, 0)
+        }
       });
     } finally {
       setLoading(false);
@@ -845,7 +879,7 @@ const DashboardHome = () => {
                   value: item.delivered
                 }))}
               />
-            ) : (currentUser?.role === 'Administration' || currentUser?.role === 'Admin') && adminChartData?.deliveryHistory ? (
+            ) : (currentUser?.role === 'Administration' || currentUser?.role === 'Admin') && (adminChartData?.deliveryHistory?.length > 0) ? (
               <DeliveryChart 
                 deliveryData={adminChartData.deliveryHistory.map(item => ({
                   label: new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
@@ -866,7 +900,7 @@ const DashboardHome = () => {
               </div>
             ) : (
               <DeliveryChart 
-                deliveryData={generateSampleDeliveryHistory().map(item => ({
+                deliveryData={(adminChartData?.deliveryHistory && adminChartData.deliveryHistory.length === 0 ? generateSampleDeliveryHistory() : generateSampleDeliveryHistory()).map(item => ({
                   label: new Date(item.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
                   value: item.delivered
                 }))}

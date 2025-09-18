@@ -138,10 +138,11 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
   const handleScan = async (decodedText) => {
     console.log('🔍 Scanned code:', decodedText);
     
-    // Check if already scanned (check by tracking_number, id, or client_code)
+    // Check if already scanned (check by tracking_number, id, parcel_id, or client_code)
     const alreadyScanned = scannedParcels.some(sp => 
       sp.tracking_number === decodedText ||
       sp.id.toString() === decodedText ||
+      (sp.parcel_id || sp.id).toString() === decodedText ||
       sp.client_code === decodedText
     );
     
@@ -158,7 +159,7 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     // First, search in direct mission parcels
     const directParcel = mission.parcels?.find(p => 
       p.tracking_number === decodedText ||
-      p.id.toString() === decodedText ||
+      (p.parcel_id || p.id).toString() === decodedText ||
       p.client_code === decodedText
     );
     
@@ -170,7 +171,7 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
       for (const demand of mission.demands || []) {
         const foundParcel = demand.parcels?.find(p => 
           p.tracking_number === decodedText ||
-          p.id.toString() === decodedText ||
+          (p.parcel_id || p.id).toString() === decodedText ||
           p.client_code === decodedText
         );
         
@@ -189,12 +190,14 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     }
 
     try {
-      // Call backend to update parcel status
-      await onScan(mission.id, parcel.id, decodedText);
+      // Call backend to update parcel status - use parcel_id for mission parcels, id for demand parcels
+      const parcelId = parcel.parcel_id || parcel.id;
+      await onScan(mission.id, parcelId, decodedText);
       
       // Add to scanned parcels
       const newScannedParcel = {
         ...parcel,
+        id: parcelId, // Use the correct parcel ID (parcel_id for mission parcels, id for demand parcels)
         demand_id: foundInDemand?.id,
         demand_name: foundInDemand?.expediteur_name,
         scanned_at: new Date().toISOString(),
@@ -217,10 +220,11 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
   const handleManualAdd = (e) => {
     e.preventDefault();
     if (manualCode) {
-      // Check if already scanned (check by tracking_number, id, or client_code)
+      // Check if already scanned (check by tracking_number, id, parcel_id, or client_code)
       const alreadyScanned = scannedParcels.some(sp => 
         sp.tracking_number === manualCode ||
         sp.id.toString() === manualCode ||
+        (sp.parcel_id || sp.id).toString() === manualCode ||
         sp.client_code === manualCode
       );
       
@@ -238,6 +242,7 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     const updatedScannedParcels = scannedParcels.filter(sp => 
       sp.tracking_number !== trackingNumber &&
       sp.id.toString() !== trackingNumber &&
+      (sp.parcel_id || sp.id).toString() !== trackingNumber &&
       sp.client_code !== trackingNumber
     );
     setScannedParcels(updatedScannedParcels);
@@ -269,14 +274,14 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
   
   // Add direct mission parcels
   directParcels.forEach(parcel => {
-    const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+    const parcelKey = `${parcel.tracking_number}-${parcel.parcel_id || parcel.id}`;
     uniqueParcelKeys.add(parcelKey);
   });
   
   // Add demand parcels
   mission.demands?.forEach(demand => {
     demand.parcels?.forEach(parcel => {
-      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      const parcelKey = `${parcel.tracking_number}-${parcel.parcel_id || parcel.id}`;
       uniqueParcelKeys.add(parcelKey);
     });
   });
@@ -315,12 +320,12 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     };
     
     directParcels.forEach(parcel => {
-      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      const parcelKey = `${parcel.tracking_number}-${parcel.parcel_id || parcel.id}`;
       if (!processedParcelIds.has(parcelKey)) {
         const isScanned = scannedParcels.some(sp => 
           sp.tracking_number === parcel.tracking_number ||
           sp.id === parcel.id ||
-          sp.client_code === parcel.client_code
+          sp.parcel_id === parcel.parcel_id
         );
         parcelsByShipper[shipperName].parcels.push({
           ...parcel,
@@ -348,12 +353,12 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
     }
     
     demand.parcels?.forEach(parcel => {
-      const parcelKey = `${parcel.tracking_number}-${parcel.id}-${parcel.client_code}`;
+      const parcelKey = `${parcel.tracking_number}-${parcel.parcel_id || parcel.id}`;
       if (!processedParcelIds.has(parcelKey)) {
         const isScanned = scannedParcels.some(sp => 
           sp.tracking_number === parcel.tracking_number ||
           sp.id === parcel.id ||
-          sp.client_code === parcel.client_code
+          sp.parcel_id === parcel.parcel_id
         );
         parcelsByShipper[shipperName].parcels.push({
           ...parcel,
@@ -380,7 +385,7 @@ const ChefAgenceMissionScan = ({ mission, onScan, onClose, onGenerateCode }) => 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="font-semibold">🚚 Livreur:</span>
-                <div className="text-blue-100">{mission?.driver?.name || 'N/A'}</div>
+                <div className="text-blue-100">{mission?.driver?.name || mission?.driver_name || 'N/A'}</div>
               </div>
               <div>
                 <span className="font-semibold">📊 Statut:</span>

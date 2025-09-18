@@ -247,8 +247,8 @@ router.post('/', authenticateToken, async (req, res) => {
       WHERE id = ANY($1)
     `;
     
-    const demandCheckResult = await client.query(demandCheckSqlQuery, [demand_ids]);
     
+    const demandCheckResult = await client.query(demandCheckSqlQuery, [demand_ids]);
     const unavailableDemands = demandCheckResult.rows.filter(d => d.status !== 'Accepted');
     
     if (unavailableDemands.length > 0) {
@@ -1016,12 +1016,21 @@ router.post('/:id/chef-agence-scan', authenticateToken, async (req, res) => {
       });
     }
     
-    // Check if parcel belongs to this mission
+    // Check if parcel belongs to this mission (either direct mission parcels or demand parcels)
     const parcelCheck = await client.query(`
-      SELECT p.id, p.tracking_number, p.status
+      SELECT p.id, p.tracking_number, p.status, 'mission' as source
       FROM parcels p
       INNER JOIN mission_parcels mp ON p.id = mp.parcel_id
       WHERE mp.mission_id = $1 AND p.id = $2
+      
+      UNION
+      
+      SELECT p.id, p.tracking_number, p.status, 'demand' as source
+      FROM parcels p
+      INNER JOIN demand_parcels dp ON p.id = dp.parcel_id
+      INNER JOIN demands d ON dp.demand_id = d.id
+      INNER JOIN mission_demands md ON d.id = md.demand_id
+      WHERE md.mission_id = $1 AND p.id = $2
     `, [id, parcelId]);
     
     if (parcelCheck.rows.length === 0) {

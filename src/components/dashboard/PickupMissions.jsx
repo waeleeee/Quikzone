@@ -44,7 +44,12 @@ const PickupMissions = () => {
         agency: agencyFilter
       });
 
+      console.log('🔍 Fetching missions with params:', params.toString());
       const response = await pickupMissionsService.getPickupMissions(params.toString());
+      console.log('📡 Missions response:', response);
+      console.log('📡 Missions array:', response.missions);
+      console.log('📡 Pagination:', response.pagination);
+      
       setMissions(response.missions || []);
       setPagination(prev => ({
         ...prev,
@@ -196,7 +201,9 @@ const PickupMissions = () => {
   const columns = [
     { key: 'mission_code', label: 'Code Mission', sortable: true },
     { key: 'livreur_name', label: 'Livreur', sortable: true },
-    { key: 'livreur_agency', label: 'Agence', sortable: true },
+    { key: 'driver_agency', label: 'Agence Livreur', sortable: true },
+    { key: 'shipper_name', label: 'Expéditeur', sortable: true },
+    { key: 'shipper_agency', label: 'Agence Expéditeur', sortable: true },
     { key: 'parcel_count', label: 'Nbr Colis', sortable: true },
     { key: 'status', label: 'Statut', sortable: true },
     { key: 'created_at', label: 'Date Création', sortable: true },
@@ -223,9 +230,11 @@ const PickupMissions = () => {
 
   // Format data for table
   const formatData = (mission) => ({
-    mission_code: mission.mission_code,
-    livreur_name: mission.livreur_name,
-    livreur_agency: mission.livreur_agency,
+    mission_code: mission.mission_number || mission.mission_code,
+    livreur_name: mission.driver_name || mission.livreur_name,
+    driver_agency: mission.driver_agency || mission.livreur_agency || 'Non assigné',
+    shipper_name: mission.shipper_name || 'Non assigné',
+    shipper_agency: mission.shipper_agency || 'Non assigné',
     parcel_count: mission.parcel_count || mission.total_parcels || 0,
     status: getStatusBadge(mission.status),
     created_at: new Date(mission.created_at).toLocaleDateString('fr-FR'),
@@ -301,6 +310,28 @@ const PickupMissions = () => {
           </button>
         )}
       </div>
+
+      {/* Filter information */}
+      {currentUser?.role === 'Chef d\'agence' && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              <span className="text-sm font-medium text-blue-800">
+                Affichage filtré: Missions de votre agence ({missions.length} missions visibles)
+              </span>
+            </div>
+            <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
+              Chef d'agence
+            </span>
+          </div>
+                     <p className="text-xs text-blue-600 mt-1">
+             Seules les missions où l'expéditeur appartient à votre agence sont affichées.
+           </p>
+        </div>
+      )}
 
       {/* Missions table */}
       <div className="bg-white rounded-lg shadow">
