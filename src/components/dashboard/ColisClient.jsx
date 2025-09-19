@@ -190,12 +190,12 @@ const ColisClient = () => {
   };
 
   const columns = [
-    { key: "tracking_number", header: "N° Colis" },
-    { key: "shipper", header: "Expéditeur" },
-    { key: "destination", header: "Destination" },
+    { key: "tracking_number", label: "N° Colis" },
+    { key: "shipper", label: "Expéditeur" },
+    { key: "destination", label: "Destination" },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       render: (value) => {
             const statusColors = {
       "En attente": "bg-yellow-100 text-yellow-800",
@@ -219,13 +219,13 @@ const ColisClient = () => {
         );
       },
     },
-    { key: "weight", header: "Poids" },
-    { key: "dateCreated", header: "Date de création" },
-    { key: "estimatedDelivery", header: "Date de livraison estimée" },
-    { key: "price", header: "Prix" },
+    { key: "weight", label: "Poids" },
+    { key: "dateCreated", label: "Date de création" },
+    { key: "estimatedDelivery", label: "Date de livraison estimée" },
+    { key: "price", label: "Prix" },
     { 
       key: "client_code", 
-      header: "Code Client",
+      label: "Code Client",
       render: (value) => (
         <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full font-mono">
           {value}

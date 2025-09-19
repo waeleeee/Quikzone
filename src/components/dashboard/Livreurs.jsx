@@ -172,7 +172,7 @@ const Livreurs = () => {
   const columns = [
     { 
       key: "photo_url", 
-      header: "Photo",
+      label: "Photo",
       render: (value, row) => (
         <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
           {value && (value.startsWith('http') || value.startsWith('blob:') || value.startsWith('data:') || value.trim() !== '') ? (
@@ -193,16 +193,16 @@ const Livreurs = () => {
         </div>
       )
     },
-    { key: "name", header: "Nom" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Téléphone" },
-    { key: "governorate", header: "Gouvernorat" },
-    { key: "car_number", header: "Numéro de voiture" },
-    { key: "car_type", header: "Type de voiture" },
-    { key: "agency", header: "Depôt" },
+    { key: "name", label: "Nom" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Téléphone" },
+    { key: "governorate", label: "Gouvernorat" },
+    { key: "car_number", label: "Numéro de voiture" },
+    { key: "car_type", label: "Type de voiture" },
+    { key: "agency", label: "Depôt" },
     { 
       key: "documents", 
-      header: "Documents",
+      label: "Documents",
       render: (value, row) => (
         <div className="flex space-x-1">
           {row.personal_documents_url && (

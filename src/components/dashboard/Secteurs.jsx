@@ -32,12 +32,12 @@ const Secteurs = () => {
 
 
   const columns = [
-    { key: "id", header: "ID", render: v => v ? `SEC${String(v).padStart(3, '0')}` : "N/A" },
-    { key: "name", header: "Nom du secteur" },
-    { key: "city", header: "Ville", render: value => Array.isArray(value) ? value.join(", ") : value },
+    { key: "id", label: "ID", render: v => v ? `SEC${String(v).padStart(3, '0')}` : "N/A" },
+    { key: "name", label: "Nom du secteur" },
+    { key: "city", label: "Ville", render: value => Array.isArray(value) ? value.join(", ") : value },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       render: value => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${value === "Actif" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{value}</span>
       ),

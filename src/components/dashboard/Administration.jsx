@@ -36,11 +36,11 @@ const Administration = () => {
   });
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Nom" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Téléphone" },
-    { key: "role", header: "Rôle" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "Nom" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Téléphone" },
+    { key: "role", label: "Rôle" },
   ];
 
   const handleAdd = () => {

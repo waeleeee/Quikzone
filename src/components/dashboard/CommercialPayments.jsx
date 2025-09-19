@@ -195,20 +195,20 @@ const CommercialPayments = () => {
   };
 
   const columns = [
-    { key: "reference", header: "RÉFÉRENCE" },
-    { key: "type", header: "TYPE" },
-    { key: "description", header: "DESCRIPTION" },
+    { key: "reference", label: "RÉFÉRENCE" },
+    { key: "type", label: "TYPE" },
+    { key: "description", label: "DESCRIPTION" },
     { 
       key: "amount", 
-      header: "MONTANT",
+      label: "MONTANT",
       render: (value) => (
         <span className="font-semibold text-green-600">DT{parseFloat(value || 0).toFixed(2)}</span>
       )
     },
-    { key: "payment_method", header: "MÉTHODE" },
+    { key: "payment_method", label: "MÉTHODE" },
     {
       key: "status",
-      header: "STATUT",
+      label: "STATUT",
       render: (value) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -225,13 +225,13 @@ const CommercialPayments = () => {
     },
     { 
       key: "created_at", 
-      header: "DATE",
+      label: "DATE",
       render: (value) => value ? new Date(value).toLocaleDateString('fr-FR') : 'N/A'
     },
     // Only show actions column for admin users
     ...(isAdmin ? [{
       key: "actions",
-      header: "ACTIONS",
+      label: "ACTIONS",
       render: (_, row) => (
         <div className="flex gap-2">
           <button

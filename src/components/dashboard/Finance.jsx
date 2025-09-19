@@ -196,17 +196,17 @@ const Finance = () => {
   };
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Nom et prénom" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Téléphone" },
-    { key: "governorate", header: "Gouvernorat" },
-    { key: "address", header: "Adresse" },
-    { key: "title", header: "Titre", render: value => titreOptions.find(o => o.value === value)?.label || value },
-    { key: "agency", header: "Depôt" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "Nom et prénom" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Téléphone" },
+    { key: "governorate", label: "Gouvernorat" },
+    { key: "address", label: "Adresse" },
+    { key: "title", label: "Titre", render: value => titreOptions.find(o => o.value === value)?.label || value },
+    { key: "agency", label: "Depôt" },
     {
       key: "actions",
-      header: "Actions",
+      label: "Actions",
       render: (_, row) => (
         <div className="flex gap-2">
           <button

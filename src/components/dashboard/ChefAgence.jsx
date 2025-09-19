@@ -497,37 +497,37 @@ const ChefAgence = () => {
                     (m.role && m.role.toLowerCase().includes(searchMember.toLowerCase()))
                   )}
                   columns={[
-                    { key: "id", header: "ID" },
-                    { key: "name", header: "Nom et prénom" },
-                    { key: "email", header: "Email" },
+                    { key: "id", label: "ID" },
+                    { key: "name", label: "Nom et prénom" },
+                    { key: "email", label: "Email" },
                     { 
                       key: "phone", 
-                      header: "Téléphone",
+                      label: "Téléphone",
                       render: (value) => value || "N/A"
                     },
                     { 
                       key: "governorate", 
-                      header: "Gouvernorat",
+                      label: "Gouvernorat",
                       render: (value) => value || "N/A"
                     },
                     { 
                       key: "address", 
-                      header: "Adresse",
+                      label: "Adresse",
                       render: (value) => value || "N/A"
                     },
                     { 
                       key: "agency", 
-                      header: "Depôt",
+                      label: "Depôt",
                       render: (value) => value || "N/A"
                     },
                     { 
                       key: "role", 
-                      header: "Rôle",
+                      label: "Rôle",
                       render: (value) => value || "N/A"
                     },
                     {
                       key: "actions",
-                      header: "Actions",
+                      label: "Actions",
                       render: (_, member) => (
                         <div className="flex gap-3">
                           <button

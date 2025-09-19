@@ -126,14 +126,14 @@ const Reclamation = () => {
   };
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "client_name", header: "Client" },
-    { key: "client_email", header: "Email" },
-    { key: "subject", header: "Type de problème" },
-    { key: "created_at", header: "Date", render: (value) => new Date(value).toLocaleDateString('fr-FR') },
+    { key: "id", label: "ID" },
+    { key: "client_name", label: "Client" },
+    { key: "client_email", label: "Email" },
+    { key: "subject", label: "Type de problème" },
+    { key: "created_at", label: "Date", render: (value) => new Date(value).toLocaleDateString('fr-FR') },
     {
       key: "attachments",
-      header: "Pièces jointes",
+      label: "Pièces jointes",
       render: (value) => {
         if (!value || value.length === 0) {
           return <span className="text-gray-400">Aucune</span>;
@@ -158,7 +158,7 @@ const Reclamation = () => {
     },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       render: (value) => {
         const statusColors = {
           "En attente": "bg-yellow-100 text-yellow-800",

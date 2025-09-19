@@ -57,15 +57,15 @@ const ClientPayments = () => {
   const [facturePayment, setFacturePayment] = useState(null);
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "shipper", header: "Expéditeur" },
-    { key: "amount", header: "Montant" },
-    { key: "date", header: "Date" },
-    { key: "method", header: "Méthode de paiement" },
-    { key: "reference", header: "Référence" },
+    { key: "id", label: "ID" },
+    { key: "shipper", label: "Expéditeur" },
+    { key: "amount", label: "Montant" },
+    { key: "date", label: "Date" },
+    { key: "method", label: "Méthode de paiement" },
+    { key: "reference", label: "Référence" },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       render: (value) => (
         <span
           className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -80,7 +80,7 @@ const ClientPayments = () => {
     },
     {
       key: "facture",
-      header: "Facture",
+      label: "Facture",
       render: (_, row) => (
         <button
           onClick={() => { setFacturePayment(row); setIsFactureOpen(true); }}

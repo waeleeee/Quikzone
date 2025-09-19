@@ -159,31 +159,31 @@ const CommercialProfile = () => {
 
   // Column definitions
   const expediteurColumns = [
-    { key: "code", header: "CODE" },
-    { key: "name", header: "NOM" },
-    { key: "email", header: "EMAIL" },
-    { key: "phone", header: "TÉLÉPHONE" },
-    { key: "company", header: "ENTREPRISE" },
-    { key: "total_parcels", header: "TOTAL COLIS" },
-    { key: "delivered_parcels", header: "COLIS LIVRÉ" },
-    { key: "returned_parcels", header: "COLIS RETOURNÉ" },
+    { key: "code", label: "CODE" },
+    { key: "name", label: "NOM" },
+    { key: "email", label: "EMAIL" },
+    { key: "phone", label: "TÉLÉPHONE" },
+    { key: "company", label: "ENTREPRISE" },
+    { key: "total_parcels", label: "TOTAL COLIS" },
+    { key: "delivered_parcels", label: "COLIS LIVRÉ" },
+    { key: "returned_parcels", label: "COLIS RETOURNÉ" },
     {
       key: "delivery_fees",
-      header: "FRAIS DE LIVRAISON",
+      label: "FRAIS DE LIVRAISON",
       render: (value) => (
         <span className="font-semibold text-green-600">€{parseFloat(value || 0).toFixed(2)}</span>
       )
     },
     {
       key: "return_fees",
-      header: "FRAIS DE RETOUR",
+      label: "FRAIS DE RETOUR",
       render: (value) => (
         <span className="font-semibold text-red-600">€{parseFloat(value || 0).toFixed(2)}</span>
       )
     },
     {
       key: "status",
-      header: "STATUT",
+      label: "STATUT",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
           value === "Actif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
@@ -194,7 +194,7 @@ const CommercialProfile = () => {
     },
     {
       key: "actions",
-      header: "ACTIONS",
+      label: "ACTIONS",
       render: (_, row) => (
         <button
           onClick={() => handleViewExpediteurDetails(row)}
@@ -211,12 +211,12 @@ const CommercialProfile = () => {
   ];
 
   const parcelColumns = [
-    { key: "tracking_number", header: "NUMÉRO DE SUIVI" },
-    { key: "shipper_name", header: "EXPÉDITEUR" },
-    { key: "destination", header: "DESTINATION" },
+    { key: "tracking_number", label: "NUMÉRO DE SUIVI" },
+    { key: "shipper_name", label: "EXPÉDITEUR" },
+    { key: "destination", label: "DESTINATION" },
     {
       key: "status",
-      header: "STATUT",
+      label: "STATUT",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
           value === "delivered" ? "bg-green-100 text-green-800" :
@@ -229,18 +229,18 @@ const CommercialProfile = () => {
         </span>
       )
     },
-    { key: "weight", header: "POIDS (KG)" },
-    { key: "created_at", header: "DATE CRÉATION" }
+    { key: "weight", label: "POIDS (KG)" },
+    { key: "created_at", label: "DATE CRÉATION" }
   ];
 
   const paymentColumns = [
-    { key: "reference", header: "RÉFÉRENCE" },
-    { key: "shipper_name", header: "EXPÉDITEUR" },
-    { key: "amount", header: "MONTANT" },
-    { key: "payment_method", header: "MÉTHODE" },
+    { key: "reference", label: "RÉFÉRENCE" },
+    { key: "shipper_name", label: "EXPÉDITEUR" },
+    { key: "amount", label: "MONTANT" },
+    { key: "payment_method", label: "MÉTHODE" },
     {
       key: "status",
-      header: "STATUT",
+      label: "STATUT",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
           value === "paid" ? "bg-green-100 text-green-800" :
@@ -252,16 +252,16 @@ const CommercialProfile = () => {
         </span>
       )
     },
-    { key: "created_at", header: "DATE" }
+    { key: "created_at", label: "DATE" }
   ];
 
   const complaintColumns = [
-    { key: "id", header: "ID" },
-    { key: "client_name", header: "CLIENT" },
-    { key: "subject", header: "SUJET" },
+    { key: "id", label: "ID" },
+    { key: "client_name", label: "CLIENT" },
+    { key: "subject", label: "SUJET" },
     {
       key: "status",
-      header: "STATUT",
+      label: "STATUT",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
           value === "resolved" ? "bg-green-100 text-green-800" :
@@ -275,7 +275,7 @@ const CommercialProfile = () => {
         </span>
       )
     },
-    { key: "created_at", header: "DATE" }
+    { key: "created_at", label: "DATE" }
   ];
 
   if (loading) {

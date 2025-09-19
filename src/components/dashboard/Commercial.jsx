@@ -767,19 +767,19 @@ const Commercial = () => {
 
   // Define columns for the main Commercials table
   const commercialColumns = [
-    { key: "id", header: "ID" },
-    { key: "name", header: "NOM" },
-    { key: "email", header: "EMAIL" },
-    { key: "phone", header: "TÉLÉPHONE" },
-    { key: "governorate", header: "GOUVERNORAT" },
-    { key: "address", header: "ADRESSE" },
-    { key: "title", header: "TITRE" },
-    { key: "clients_count", header: "CLIENTS" },
-    { key: "shipments_received", header: "EXPÉDITIONS REÇUES" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "NOM" },
+    { key: "email", label: "EMAIL" },
+    { key: "phone", label: "TÉLÉPHONE" },
+    { key: "governorate", label: "GOUVERNORAT" },
+    { key: "address", label: "ADRESSE" },
+    { key: "title", label: "TITRE" },
+    { key: "clients_count", label: "CLIENTS" },
+    { key: "shipments_received", label: "EXPÉDITIONS REÇUES" },
 
     {
       key: "actions",
-      header: "ACTIONS",
+      label: "ACTIONS",
       render: (_, row) => (
         <div className="flex gap-2">
           <button

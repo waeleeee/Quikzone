@@ -648,15 +648,15 @@ const Entrepots = () => {
   };
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "name", header: "Nom de l'entrepôt" },
-    { key: "gouvernorat", header: "Gouvernorat" },
-    { key: "address", header: "Adresse" },
-    { key: "manager", header: "Responsable" },
-    { key: "sector", header: "Secteur" },
+    { key: "id", label: "ID" },
+    { key: "name", label: "Nom de l'entrepôt" },
+    { key: "gouvernorat", label: "Gouvernorat" },
+    { key: "address", label: "Adresse" },
+    { key: "manager", label: "Responsable" },
+    { key: "sector", label: "Secteur" },
     {
       key: "actions",
-      header: "Actions",
+      label: "Actions",
       render: (_, warehouse) => (
         <ActionButtons
           onView={() => handleViewDetails(warehouse)}

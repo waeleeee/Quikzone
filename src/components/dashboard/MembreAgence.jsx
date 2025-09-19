@@ -262,18 +262,18 @@ const MembreAgence = () => {
   const columns = [
     { 
       key: "id", 
-      header: "ID",
+      label: "ID",
       render: value => value ? `MEM${String(value).padStart(3, '0')}` : 'N/A'
     },
-    { key: "name", header: "Nom et prénom" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Téléphone" },
-    { key: "governorate", header: "Gouvernorat" },
-    { key: "agency", header: "Depôt" },
-    { key: "role", header: "Rôle" },
+    { key: "name", label: "Nom et prénom" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Téléphone" },
+    { key: "governorate", label: "Gouvernorat" },
+    { key: "agency", label: "Depôt" },
+    { key: "role", label: "Rôle" },
     { 
       key: "status", 
-      header: "Statut",
+      label: "Statut",
       render: value => (
         <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
           value === 'Actif' 
@@ -286,7 +286,7 @@ const MembreAgence = () => {
     },
     { 
       key: "created_at", 
-      header: "Date de création",
+      label: "Date de création",
       render: value => value ? new Date(value).toLocaleDateString('fr-FR') : 'N/A'
     },
 

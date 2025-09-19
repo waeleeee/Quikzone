@@ -516,37 +516,37 @@ const Colis = () => {
   const columns = [
     { 
       key: "id", 
-      header: "N° Colis",
+      label: "N° Colis",
       minWidth: "80px",
       render: (value) => <span className="font-semibold text-blue-600">#{value}</span>
     },
     { 
       key: "tracking_number", 
-      header: "N° Suivi",
+      label: "N° Suivi",
       minWidth: "120px",
       render: (value) => <span className="font-mono text-sm">{value}</span>
     },
     { 
       key: "shipper_name", 
-      header: "Expéditeur",
+      label: "Expéditeur",
       minWidth: "150px",
       render: (value) => <span className="font-medium">{value || '-'}</span>
     },
     { 
       key: "shipper_code", 
-      header: "Code Expéditeur",
+      label: "Code Expéditeur",
       minWidth: "120px",
       render: (value) => <span className="text-xs bg-gray-100 px-2 py-1 rounded">{value || '-'}</span>
     },
     { 
       key: "destination", 
-      header: "Destination",
+      label: "Destination",
       minWidth: "200px",
       render: (value) => <span className="max-w-xs truncate" title={value}>{value || '-'}</span>
     },
     {
       key: "status",
-      header: "Statut",
+      label: "Statut",
       minWidth: "120px",
       render: (value, parcel) => {
         const statusColors = {
@@ -582,13 +582,13 @@ const Colis = () => {
     },
     { 
       key: "weight", 
-      header: "Poids (kg)",
+      label: "Poids (kg)",
       minWidth: "100px",
       render: (value) => <span className="font-mono">{value ? `${value} kg` : '-'}</span>
     },
     { 
       key: "type", 
-      header: "Type",
+      label: "Type",
       minWidth: "100px",
       render: (value) => {
         const typeColors = {
@@ -605,55 +605,55 @@ const Colis = () => {
     },
     { 
       key: "price", 
-      header: "Prix (DT)",
+      label: "Prix (DT)",
       minWidth: "100px",
       render: (value) => <span className="font-semibold text-green-600">{value ? `${value} DT` : '-'}</span>
     },
     { 
       key: "delivery_fees", 
-      header: "Frais Livraison",
+      label: "Frais Livraison",
       minWidth: "120px",
       render: (value) => <span className="text-sm">{value ? `${value} DT` : '-'}</span>
     },
     { 
       key: "return_fees", 
-      header: "Frais Retour",
+      label: "Frais Retour",
       minWidth: "120px",
       render: (value) => <span className="text-sm">{value ? `${value} DT` : '-'}</span>
     },
     { 
       key: "created_date", 
-      header: "Date de création",
+      label: "Date de création",
       minWidth: "120px",
       render: (value) => <span className="text-sm text-gray-600">{value ? new Date(value).toLocaleDateString('fr-FR') : '-'}</span>
     },
     { 
       key: "estimated_delivery_date", 
-      header: "Date estimée",
+      label: "Date estimée",
       minWidth: "120px",
       render: (value) => <span className="text-sm text-blue-600">{value ? new Date(value).toLocaleDateString('fr-FR') : '-'}</span>
     },
     { 
       key: "actual_delivery_date", 
-      header: "Date réelle",
+      label: "Date réelle",
       minWidth: "120px",
       render: (value) => <span className="text-sm text-green-600">{value ? new Date(value).toLocaleDateString('fr-FR') : '-'}</span>
     },
     { 
       key: "shipper_phone", 
-      header: "Téléphone",
+      label: "Téléphone",
       minWidth: "130px",
       render: (value) => <span className="text-sm font-mono">{value || '-'}</span>
     },
     { 
       key: "shipper_email", 
-      header: "Email",
+      label: "Email",
       minWidth: "180px",
       render: (value) => <span className="text-sm text-blue-600 truncate max-w-32" title={value}>{value || '-'}</span>
     },
     { 
       key: "shipper_company", 
-      header: "Société",
+      label: "Société",
       minWidth: "150px",
       render: (value) => <span className="text-sm truncate max-w-32" title={value}>{value || '-'}</span>
     },

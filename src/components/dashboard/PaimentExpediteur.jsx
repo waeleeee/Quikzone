@@ -246,15 +246,15 @@ const PaimentExpediteur = () => {
   const [facturePayment, setFacturePayment] = useState(null);
 
   const columns = [
-    { key: "id", header: "ID" },
-    { key: "shipper", header: "Expéditeur" },
-    { key: "amount", header: "Montant" },
-    { key: "date", header: "Date" },
-    { key: "method", header: "Méthode de paiement" },
-    { key: "reference", header: "Référence" },
+    { key: "id", label: "ID" },
+    { key: "shipper", label: "Expéditeur" },
+    { key: "amount", label: "Montant" },
+    { key: "date", label: "Date" },
+    { key: "method", label: "Méthode de paiement" },
+    { key: "reference", label: "Référence" },
     { 
       key: "payment_details", 
-      header: "Détails Paiement",
+      label: "Détails Paiement",
       render: (_, row) => {
         // Use the method_enum field for checking payment type
         const paymentMethod = row.method_enum || row.method;
@@ -286,7 +286,7 @@ const PaimentExpediteur = () => {
 
     {
       key: "actions",
-      header: "Actions",
+      label: "Actions",
       render: (_, row) => (
         <div className="flex gap-2">
           <button

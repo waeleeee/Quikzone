@@ -228,13 +228,13 @@ const Expediteur = () => {
   });
 
   const columns = [
-    { key: "code", header: "Code" },
-    { key: "name", header: "Nom" },
-    { key: "email", header: "Email" },
-    { key: "phone", header: "Téléphone" },
+    { key: "code", label: "Code" },
+    { key: "name", label: "Nom" },
+    { key: "email", label: "Email" },
+    { key: "phone", label: "Téléphone" },
     { 
       key: "company", 
-      header: "Entreprise",
+      label: "Entreprise",
       render: (value, row) => {
         // For individual expediteurs, show page_name in the Entreprise column
         if (row.page_name) {
@@ -246,7 +246,7 @@ const Expediteur = () => {
     },
     { 
       key: "address", 
-      header: "Adresse",
+      label: "Adresse",
       render: (value, row) => {
         // For individual expediteurs, show address
         if (row.address) {
@@ -261,7 +261,7 @@ const Expediteur = () => {
     },
     { 
       key: "governorate", 
-      header: "Gouvernorat",
+      label: "Gouvernorat",
       render: (value, row) => {
         // For individual expediteurs, show governorate
         if (row.governorate) {
@@ -274,22 +274,22 @@ const Expediteur = () => {
         return "-";
       }
     },
-    { key: "total_parcels", header: "Total colis" },
-    { key: "delivered_parcels", header: "Colis livrés" },
-    { key: "returned_parcels", header: "Colis retournés" },
+    { key: "total_parcels", label: "Total colis" },
+    { key: "delivered_parcels", label: "Colis livrés" },
+    { key: "returned_parcels", label: "Colis retournés" },
     { 
       key: "delivery_fees", 
-      header: "Frais de livraison",
+      label: "Frais de livraison",
       render: (value) => `${parseFloat(value || 0).toFixed(2)} DT`
     },
     { 
       key: "return_fees", 
-      header: "Frais de retour",
+      label: "Frais de retour",
       render: (value) => `${parseFloat(value || 0).toFixed(2)} DT`
     },
     { 
       key: "status", 
-      header: "Statut",
+      label: "Statut",
       render: (value) => (
         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
           value === "Actif" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
@@ -300,7 +300,7 @@ const Expediteur = () => {
     },
     {
       key: "actions",
-      header: "Actions",
+      label: "Actions",
       render: (_, row) => (
         <div className="flex gap-2">
           <button
