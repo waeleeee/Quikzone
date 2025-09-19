@@ -1766,7 +1766,7 @@ router.get('/commercials/:id/stats', async (req, res) => {
   }
 });
 
-// Get accountants specifically (users with Finance role)
+// Get accountants specifically (from accountants table)
 router.get('/accountants', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -1774,30 +1774,28 @@ router.get('/accountants', async (req, res) => {
     
     let query = `
       SELECT 
-        u.id,
-        CONCAT(u.first_name, ' ', u.last_name) as name,
-        u.email,
-        u.phone,
-        u.created_at,
-        r.name as role,
-        'Comptable' as title,
-        'Siège' as agency,
-        'Tunis' as governorate,
-        '' as address
-      FROM users u
-      INNER JOIN user_roles ur ON u.id = ur.user_id
-      INNER JOIN roles r ON ur.role_id = r.id
-      WHERE r.name = 'Finance' AND u.is_active = true
+        id,
+        name,
+        email,
+        phone,
+        governorate,
+        address,
+        title,
+        agency,
+        created_at,
+        'Comptable' as role
+      FROM accountants
+      WHERE 1=1
     `;
     
     const queryParams = [];
     
     if (search) {
-      query += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
+      query += ` AND (name ILIKE $1 OR email ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
     
-    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    query += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(limit, offset);
     
     const result = await db.query(query, queryParams);
@@ -1805,15 +1803,13 @@ router.get('/accountants', async (req, res) => {
     // Get total count
     let countQuery = `
       SELECT COUNT(*) 
-      FROM users u
-      INNER JOIN user_roles ur ON u.id = ur.user_id
-      INNER JOIN roles r ON ur.role_id = r.id
-      WHERE r.name = 'Finance' AND u.is_active = true
+      FROM accountants
+      WHERE 1=1
     `;
     const countParams = [];
     
     if (search) {
-      countQuery += ` AND (CONCAT(u.first_name, ' ', u.last_name) ILIKE $1 OR u.email ILIKE $1)`;
+      countQuery += ` AND (name ILIKE $1 OR email ILIKE $1)`;
       countParams.push(`%${search}%`);
     }
     
@@ -1839,7 +1835,7 @@ router.get('/accountants', async (req, res) => {
   }
 });
 
-// Create new accountant (user with Finance role)
+// Create new accountant (in accountants table)
 router.post('/accountants', async (req, res) => {
   try {
     const { name, email, phone, governorate, address, title, agency, password } = req.body;
@@ -1851,97 +1847,41 @@ router.post('/accountants', async (req, res) => {
       passwordLength: password?.length
     });
 
-    // Check if user already exists in users table
-    const existingUser = await db.query(
-      'SELECT id FROM users WHERE email = $1',
+    // Check if accountant already exists
+    const existingAccountant = await db.query(
+      'SELECT id FROM accountants WHERE email = $1',
       [email]
     );
-    if (existingUser.rows.length > 0) {
+    if (existingAccountant.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: 'Accountant with this email already exists'
       });
     }
 
-    // Hash password (required for new comptables)
-    if (!password || !password.trim()) {
-      console.log('❌ No password provided');
-      return res.status(400).json({
-        success: false,
-        message: 'Password is required for new comptables'
-      });
+    // Hash password if provided
+    let hashedPassword = null;
+    if (password && password.trim()) {
+      console.log('🔐 Hashing password...');
+      hashedPassword = await bcrypt.hash(password, 10);
+      console.log('✅ Password hashed successfully');
     }
+
+    // Create accountant in accountants table
+    const result = await db.query(`
+      INSERT INTO accountants (name, email, phone, governorate, address, title, agency, password)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, name, email, phone, governorate, address, title, agency, created_at
+    `, [name, email, phone, governorate, address, title, agency, hashedPassword]);
     
-    console.log('🔐 Hashing password...');
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log('✅ Password hashed successfully');
-
-    // Start transaction
-    const client = await db.pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Split name into first_name and last_name
-      const nameParts = name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
-      console.log('👤 Creating user account:', {
-        email,
-        firstName,
-        lastName,
-        phone
-      });
-      
-      const userResult = await client.query(`
-        INSERT INTO users (username, email, password_hash, first_name, last_name, phone, is_active, email_verified, role)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, first_name, last_name, email, phone, created_at
-      `, [email, email, hashedPassword, firstName, lastName, phone, true, true, 'Finance']);
-      
-      const userId = userResult.rows[0].id;
-      console.log('✅ User account created with ID:', userId);
-      
-      // Get Finance role ID
-      const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', ['Finance']);
-      if (roleResult.rows.length === 0) {
-        throw new Error('Finance role not found in database');
-      }
-      const roleId = roleResult.rows[0].id;
-      
-      // Assign Finance role to user
-      await client.query(`
-        INSERT INTO user_roles (user_id, role_id, assigned_by, is_active)
-        VALUES ($1, $2, $3, $4)
-      `, [userId, roleId, userId, true]);
-      
-      await client.query('COMMIT');
-      
-      // Return the created user data
-      const createdUser = userResult.rows[0];
-      createdUser.name = `${createdUser.first_name} ${createdUser.last_name}`.trim();
-      createdUser.role = 'Finance';
-      createdUser.title = title || 'Comptable';
-      createdUser.agency = agency || 'Siège';
-      createdUser.governorate = governorate || 'Tunis';
-      createdUser.address = address || '';
-      
-      res.status(201).json({
-        success: true,
-        data: createdUser,
-        message: 'Accountant created successfully with login access'
-      });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Create accountant error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to create accountant',
-        error: error.message
-      });
-    } finally {
-      client.release();
-    }
+    const createdAccountant = result.rows[0];
+    createdAccountant.role = 'Comptable';
+    
+    res.status(201).json({
+      success: true,
+      data: createdAccountant,
+      message: 'Accountant created successfully'
+    });
   } catch (error) {
     console.error('Create accountant error:', error);
     res.status(500).json({
@@ -1966,90 +1906,45 @@ router.put('/accountants/:id', async (req, res) => {
       passwordLength: password?.length
     });
     
-    // Start transaction
-    const client = await db.pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Build dynamic query for accountants table
-      let accountantQuery = `
-        UPDATE accountants 
-        SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, title = $6, agency = $7, updated_at = CURRENT_TIMESTAMP
-      `;
-      let accountantParams = [name, email, phone, governorate, address, title, agency];
-      
-      // Add password update if provided
-      if (password && password.trim()) {
-        console.log('🔐 Updating password for accountant');
-        const hashedPassword = await bcrypt.hash(password, 10);
-        accountantQuery += `, password = $${accountantParams.length + 1}`;
-        accountantParams.push(hashedPassword);
-      } else {
-        console.log('⚠️ No password provided for update');
-      }
-      
-      accountantQuery += ` WHERE id = $${accountantParams.length + 1} RETURNING id, name, email, phone, governorate, address, title, agency, updated_at`;
-      accountantParams.push(id);
-      
-      const result = await client.query(accountantQuery, accountantParams);
-      
-      if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({
-          success: false,
-          message: 'Accountant not found'
-        });
-      }
-      
-      // Update corresponding user account if password is provided
-      if (password && password.trim()) {
-        console.log('🔐 Updating user account password for:', email);
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        const userUpdateResult = await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, password_hash = $4, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $5
-          RETURNING id
-        `, [firstName, lastName, phone, hashedPassword, email]);
-        
-        if (userUpdateResult.rows.length > 0) {
-          console.log('✅ User account password updated successfully');
-        } else {
-          console.log('⚠️ No user account found for email:', email);
-        }
-      } else {
-        // Update user info without password
-        const firstName = name.split(' ')[0] || name;
-        const lastName = name.split(' ').slice(1).join(' ') || '';
-        
-        await client.query(`
-          UPDATE users 
-          SET first_name = $1, last_name = $2, phone = $3, updated_at = CURRENT_TIMESTAMP
-          WHERE email = $4
-        `, [firstName, lastName, phone, email]);
-      }
-      
-      await client.query('COMMIT');
-      
-      const message = password && password.trim() 
-        ? 'Accountant updated successfully. Password has been changed and the user can now log in with the new password.'
-        : 'Accountant updated successfully';
-        
-      res.json({
-        success: true,
-        data: result.rows[0],
-        message: message
-      });
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+    // Build dynamic query for accountants table
+    let accountantQuery = `
+      UPDATE accountants 
+      SET name = $1, email = $2, phone = $3, governorate = $4, address = $5, title = $6, agency = $7, updated_at = CURRENT_TIMESTAMP
+    `;
+    let accountantParams = [name, email, phone, governorate, address, title, agency];
+    
+    // Add password update if provided
+    if (password && password.trim()) {
+      console.log('🔐 Updating password for accountant');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      accountantQuery += `, password = $${accountantParams.length + 1}`;
+      accountantParams.push(hashedPassword);
+    } else {
+      console.log('⚠️ No password provided for update');
     }
+    
+    accountantQuery += ` WHERE id = $${accountantParams.length + 1} RETURNING id, name, email, phone, governorate, address, title, agency, updated_at`;
+    accountantParams.push(id);
+    
+    const result = await db.query(accountantQuery, accountantParams);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Accountant not found'
+      });
+    }
+    
+    const message = password && password.trim() 
+      ? 'Accountant updated successfully. Password has been changed.'
+      : 'Accountant updated successfully';
+      
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: message
+    });
+    
   } catch (error) {
     console.error('Update accountant error:', error);
     res.status(500).json({
