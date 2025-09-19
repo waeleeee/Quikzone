@@ -1,72 +1,67 @@
-const { Pool } = require('pg');
-require('dotenv').config({ path: './config.env' });
+const db = require('./config/database');
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'quickzone_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'waelrh',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: false
-});
-
-const testAccountantsAPI = async () => {
-  const client = await pool.connect();
+async function testAccountantsAPI() {
+  const client = await db.pool.connect();
   
   try {
-    console.log('🧪 Testing accountants API data...');
-    
-    // Test the exact query that the API uses
-    const query = `
-      SELECT id, name, email, phone, governorate, address, title, agency, created_at,
-             CASE WHEN password IS NOT NULL THEN true ELSE false END as has_password
+    console.log('🧪 Testing accountants API locally...');
+
+    // Test the exact query used in the API
+    const result = await client.query(`
+      SELECT 
+        id,
+        name,
+        email,
+        phone,
+        governorate,
+        address,
+        title,
+        agency,
+        created_at,
+        'Comptable' as role
       FROM accountants
       WHERE 1=1
       ORDER BY created_at DESC
-    `;
+    `);
+
+    console.log(`✅ Query successful: Found ${result.rows.length} accountants`);
     
-    const result = await client.query(query);
-    
-    console.log('\n📊 Accountants data with has_password field:');
-    result.rows.forEach(row => {
-      console.log(`- ID: ${row.id}, Name: ${row.name}, Email: ${row.email}`);
-      console.log(`  Has Password: ${row.has_password}`);
-      console.log(`  All fields:`, row);
-      console.log('---');
-    });
-    
-    // Test creating a new accountant
-    console.log('\n🧪 Testing accountant creation...');
-    const testAccountant = {
-      name: 'Test Accountant',
-      email: 'test.accountant@quickzone.tn',
-      password: 'test123',
-      phone: '+216 99 999 999',
-      governorate: 'Tunis',
-      address: 'Test Address',
-      title: 'comptable',
-      agency: 'Siège'
-    };
-    
-    console.log('Test data:', testAccountant);
-    
+    if (result.rows.length > 0) {
+      console.log('\n📋 Sample data:');
+      result.rows.slice(0, 3).forEach(acc => {
+        console.log(`  ID: ${acc.id}, Name: ${acc.name}, Email: ${acc.email}`);
+      });
+    } else {
+      console.log('❌ No data returned - this explains the empty table');
+    }
+
+    // Test pagination
+    const paginatedResult = await client.query(`
+      SELECT 
+        id,
+        name,
+        email,
+        phone,
+        governorate,
+        address,
+        title,
+        agency,
+        created_at,
+        'Comptable' as role
+      FROM accountants
+      WHERE 1=1
+      ORDER BY created_at DESC
+      LIMIT 10 OFFSET 0
+    `);
+
+    console.log(`\n📄 Pagination test: ${paginatedResult.rows.length} records`);
+
   } catch (error) {
-    console.error('❌ Error testing accountants API:', error);
+    console.error('❌ Test failed:', error.message);
   } finally {
     client.release();
-    pool.end();
-  }
-};
-
-testAccountantsAPI()
-  .then(() => {
-    console.log('✅ Accountants API test completed');
     process.exit(0);
-  })
-  .catch((error) => {
-    console.error('❌ Accountants API test failed:', error);
-    process.exit(1);
-  }); 
+  }
+}
+
+testAccountantsAPI();
