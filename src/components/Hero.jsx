@@ -3,12 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
+// Import images as modules
+import hero1 from '/images/Hero/1.png';
+import hero2 from '/images/Hero/2.png';
+import hero3 from '/images/Hero/3.png';
+import hero4 from '/images/Hero/4.png';
+import hero5 from '/images/Hero/5.png';
+
 const slides = [
-  { img: '/images/Hero/1.png', fallback: 'QuickZone Delivery Service' },
-  { img: '/images/Hero/2.png', fallback: 'Fast & Reliable Delivery' },
-  { img: '/images/Hero/3.png', fallback: 'Professional Service' },
-  { img: '/images/Hero/4.png', fallback: 'QuickZone Excellence' },
-  { img: '/images/Hero/5.png', fallback: 'Your Trusted Partner' },
+  { img: hero1, fallback: 'QuickZone Delivery Service' },
+  { img: hero2, fallback: 'Fast & Reliable Delivery' },
+  { img: hero3, fallback: 'Professional Service' },
+  { img: hero4, fallback: 'QuickZone Excellence' },
+  { img: hero5, fallback: 'Your Trusted Partner' },
 ];
 
 function Hero() {
