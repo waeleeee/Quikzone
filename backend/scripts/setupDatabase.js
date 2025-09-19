@@ -120,6 +120,7 @@ const createTables = async () => {
       address TEXT,
       title VARCHAR(50),
       agency VARCHAR(50),
+      password VARCHAR(255),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
