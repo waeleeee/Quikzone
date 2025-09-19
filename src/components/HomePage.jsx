@@ -11,7 +11,7 @@ const HomePage = () => {
       <nav className="fixed top-0 left-0 w-full z-50 bg-white/60 backdrop-blur-lg border-b border-white/30 shadow-lg transition-all duration-500">
         <div className="container mx-auto flex justify-between items-center py-3 px-6">
           <div className="flex items-center gap-3">
-            <img src="/images/quickzonelogo.png" alt="QuickZone Logo" className="h-8" />
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ibG9nbyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2RjMjYyNiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2ZmNjY2NiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjbG9nbykiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5RdWlja1pvbmU8L3RleHQ+PC9zdmc+" alt="QuickZone Logo" className="h-8" />
           </div>
           <ul className="flex space-x-4 text-sm font-semibold ml-auto">
             <li><a href="#home" className="hover:text-red-600 transition">Accueil</a></li>
@@ -42,7 +42,7 @@ const HomePage = () => {
             <div className="relative overflow-hidden rounded-xl shadow-xl bg-white w-full h-full">
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/40 z-10 pointer-events-none"></div>
               <div className="flex items-center justify-center p-0 absolute inset-0">
-                <img src="/images/Hero/1.png" alt="QuickZone Slide 1" className="w-full h-full object-cover mb-4 drop-shadow-lg" />
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZjY2NjYiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNmZjMzMzMiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5RdWlja1pvbmUgU2xpZGUgMTwvdGV4dD48L3N2Zz4=" alt="QuickZone Slide 1" className="w-full h-full object-cover mb-4 drop-shadow-lg" />
                 <div className="absolute bottom-6 left-6 z-20 text-white text-2xl font-extrabold drop-shadow-lg">
                   Rapide. Fiable. Fièrement Tunisien !
                 </div>
@@ -50,7 +50,7 @@ const HomePage = () => {
                   Commencer
                 </a>
               </div>
-              <img src="/images/quickzonelogo.png" alt="QuickZone Watermark" className="absolute bottom-3 right-3 w-24 opacity-30 z-30 pointer-events-none select-none" />
+              <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ibG9nbyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2RjMjYyNiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2ZmNjY2NiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjbG9nbykiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5RdWlja1pvbmU8L3RleHQ+PC9zdmc+" alt="QuickZone Watermark" className="absolute bottom-3 right-3 w-24 opacity-30 z-30 pointer-events-none select-none" />
             </div>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-gray-900 relative z-20">Livraison Ultra-Rapide, Redéfinie</h1>
@@ -587,7 +587,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="/images/monjardin.webp" alt="Mon Jardin" className="w-10 h-10 object-contain" />
+                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">MJ</div>
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">Mon Jardin</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Services de pépinière et d'aménagement paysager</p>
@@ -608,7 +608,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="/images/rouraevershop.webp" alt="Roura Ever Shop" className="w-10 h-10 object-contain" />
+                    <div className="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm">RE</div>
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors duration-300">Roura Ever Shop</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Produits cosmétiques</p>
@@ -629,7 +629,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="/images/viaponit.webp" alt="Viaponit" className="w-10 h-10 object-contain" />
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">VP</div>
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">Viaponit</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Multimédia</p>
@@ -650,7 +650,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="/images/ooredoo.webp" alt="Ooredoo" className="w-10 h-10 object-contain" />
+                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">OO</div>
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors duration-300">Ooredoo</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Opérateur de télécommunications</p>
@@ -1251,7 +1251,7 @@ const HomePage = () => {
             {/* Company Info */}
             <div className="lg:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <img src="/images/quickzonelogo.png" alt="Quick Zone Logo" className="h-8" />
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ibG9nbyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2RjMjYyNiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2ZmNjY2NiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjbG9nbykiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5RdWlja1pvbmU8L3RleHQ+PC9zdmc+" alt="Quick Zone Logo" className="h-8" />
                 <div>
                   <h3 className="text-xl font-bold text-white">Quick Zone</h3>
                   <div className="w-6 h-0.5 bg-gradient-to-r from-red-500 to-red-400 rounded-full mt-1"></div>
