@@ -1,6 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import ComplaintsForm from './ComplaintsForm';
+import logo from '../assets/images/quickzonelogo.png';
+import hero1 from '../assets/images/Hero/1.png';
+import monjardin from '../assets/images/monjardin.webp';
+import rouraevershop from '../assets/images/rouraevershop.webp';
+import viaponit from '../assets/images/viaponit.webp';
+import ooredoo from '../assets/images/ooredoo.webp';
 
 const HomePage = () => {
   const { t } = useTranslation();
@@ -11,7 +17,7 @@ const HomePage = () => {
       <nav className="fixed top-0 left-0 w-full z-50 bg-white/60 backdrop-blur-lg border-b border-white/30 shadow-lg transition-all duration-500">
         <div className="container mx-auto flex justify-between items-center py-3 px-6">
           <div className="flex items-center gap-3">
-            <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="QuickZone Logo" className="h-8" />
+            <img src={logo} alt="QuickZone Logo" className="h-8" />
           </div>
           <ul className="flex space-x-4 text-sm font-semibold ml-auto">
             <li><a href="#home" className="hover:text-red-600 transition">Accueil</a></li>
@@ -42,7 +48,7 @@ const HomePage = () => {
             <div className="relative overflow-hidden rounded-xl shadow-xl bg-white w-full h-full">
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/40 z-10 pointer-events-none"></div>
               <div className="flex items-center justify-center p-0 absolute inset-0">
-                <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/1.png" alt="QuickZone Slide 1" className="w-full h-full object-cover mb-4 drop-shadow-lg" />
+                <img src={hero1} alt="QuickZone Slide 1" className="w-full h-full object-cover mb-4 drop-shadow-lg" />
                 <div className="absolute bottom-6 left-6 z-20 text-white text-2xl font-extrabold drop-shadow-lg">
                   Rapide. Fiable. Fièrement Tunisien !
                 </div>
@@ -50,7 +56,7 @@ const HomePage = () => {
                   Commencer
                 </a>
               </div>
-              <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="QuickZone Watermark" className="absolute bottom-3 right-3 w-24 opacity-30 z-30 pointer-events-none select-none" />
+              <img src={logo} alt="QuickZone Watermark" className="absolute bottom-3 right-3 w-24 opacity-30 z-30 pointer-events-none select-none" />
             </div>
           </div>
           <h1 className="text-3xl md:text-4xl font-extrabold mb-3 text-gray-900 relative z-20">Livraison Ultra-Rapide, Redéfinie</h1>
@@ -587,7 +593,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/monjardin.webp" alt="Mon Jardin" className="w-10 h-10 object-contain" />
+                    <img src={monjardin} alt="Mon Jardin" className="w-10 h-10 object-contain" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">Mon Jardin</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Services de pépinière et d'aménagement paysager</p>
@@ -608,7 +614,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-pink-50 to-pink-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/rouraevershop.webp" alt="Roura Ever Shop" className="w-10 h-10 object-contain" />
+                    <img src={rouraevershop} alt="Roura Ever Shop" className="w-10 h-10 object-contain" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors duration-300">Roura Ever Shop</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Produits cosmétiques</p>
@@ -629,7 +635,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/viaponit.webp" alt="Viaponit" className="w-10 h-10 object-contain" />
+                    <img src={viaponit} alt="Viaponit" className="w-10 h-10 object-contain" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">Viaponit</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Multimédia</p>
@@ -650,7 +656,7 @@ const HomePage = () => {
               <div className="relative bg-white rounded-xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-16 h-16 mb-4 rounded-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                    <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/ooredoo.webp" alt="Ooredoo" className="w-10 h-10 object-contain" />
+                    <img src={ooredoo} alt="Ooredoo" className="w-10 h-10 object-contain" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors duration-300">Ooredoo</h3>
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">Opérateur de télécommunications</p>
@@ -1251,7 +1257,7 @@ const HomePage = () => {
             {/* Company Info */}
             <div className="lg:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="Quick Zone Logo" className="h-8" />
+                <img src={logo} alt="Quick Zone Logo" className="h-8" />
                 <div>
                   <h3 className="text-xl font-bold text-white">Quick Zone</h3>
                   <div className="w-6 h-0.5 bg-gradient-to-r from-red-500 to-red-400 rounded-full mt-1"></div>

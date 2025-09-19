@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getFilteredMenu, hasAccess } from "../config/permissions.jsx";
 import { apiService } from "../services/api";
+import logo from '../assets/images/quickzonelogo.png';
 
 const Sidebar = ({ onSelect, selectedKey }) => {
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -40,7 +41,7 @@ const Sidebar = ({ onSelect, selectedKey }) => {
       {/* Logo QuickZone */}
       <div className="mb-6 text-center">
         <div className="flex items-center justify-center mb-1">
-          <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="QuickZone" className="h-9 w-auto" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.04))' }} />
+          <img src={logo} alt="QuickZone" className="h-9 w-auto" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.04))' }} />
         </div>
         <div className="text-xs text-gray-500 font-medium">Système de Gestion</div>
       </div>

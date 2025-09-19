@@ -3,26 +3,32 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
-// Use real images from GitHub repository
+// Import images as modules
+import hero1 from '../assets/images/Hero/1.png';
+import hero2 from '../assets/images/Hero/2.png';
+import hero3 from '../assets/images/Hero/3.png';
+import hero4 from '../assets/images/Hero/4.png';
+import hero5 from '../assets/images/Hero/5.png';
+
 const slides = [
   { 
-    img: 'https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/1.png', 
+    img: hero1, 
     fallback: 'QuickZone Delivery Service' 
   },
   { 
-    img: 'https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/2.png', 
+    img: hero2, 
     fallback: 'Fast & Reliable Delivery' 
   },
   { 
-    img: 'https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/3.png', 
+    img: hero3, 
     fallback: 'Professional Service' 
   },
   { 
-    img: 'https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/4.png', 
+    img: hero4, 
     fallback: 'QuickZone Excellence' 
   },
   { 
-    img: 'https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/Hero/5.png', 
+    img: hero5, 
     fallback: 'Your Trusted Partner' 
   },
 ];

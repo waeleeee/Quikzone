@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import logo from '../assets/images/quickzonelogo.png';
 
 function Header() {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ function Header() {
       </div>
       
       <div className="header-main">
-        <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="QuickZone Logo" className="logo" />
+        <img src={logo} alt="QuickZone Logo" className="logo" />
         <p className="header-subtitle">{t('subtitle')}</p>
       </div>
       

@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/useAppStore';
 import { apiService } from '../../services/api';
 import Barcode from "react-barcode";
 import html2pdf from "html2pdf.js";
+import logo from '../../assets/images/quickzonelogo.png';
 
 const BonLivraisonColis = ({ parcelId, parcelData }) => {
   const { id } = useParams();
@@ -341,7 +342,7 @@ const BonLivraisonColis = ({ parcelId, parcelData }) => {
             <div className="flex items-center">
               <div>
                 <img 
-                  src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" 
+                  src={logo} 
                   alt="QuickZone Logo" 
                   className="h-14 w-auto"
                   onError={(e) => {

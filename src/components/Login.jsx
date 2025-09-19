@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "../services/api";
+import logo from '../assets/images/quickzonelogo.png';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ const Login = () => {
         {/* Logo */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <img src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" alt="QuickZone" className="h-16 w-auto" />
+            <img src={logo} alt="QuickZone" className="h-16 w-auto" />
           </div>
           <p className="mt-2 text-gray-600">Système de Gestion</p>
         </div>

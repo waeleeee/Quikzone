@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import Barcode from "react-barcode";
 import html2pdf from "html2pdf.js";
+import logo from '../../assets/images/quickzonelogo.png';
 
 const FactureColis = ({
   colis = [],
@@ -162,7 +163,7 @@ const FactureColis = ({
         <div className="flex justify-between items-start mb-8">
           <div className="flex items-center space-x-4">
             <img 
-              src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" 
+              src={logo} 
               alt="QuickZone" 
               className="h-16 w-auto" 
               style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.04))' }}
@@ -316,7 +317,7 @@ const FactureColis = ({
         <div className="flex justify-between items-start mb-8">
           <div className="flex items-center space-x-4">
             <img 
-              src="https://raw.githubusercontent.com/waeleeee/Quikzone/main/public/images/quickzonelogo.png" 
+              src={logo} 
               alt="QuickZone" 
               className="h-16 w-auto" 
               style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.04))' }}
