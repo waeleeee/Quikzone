@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 const slides = [
-  { img: '/images/Hero/1.png' },
-  { img: '/images/Hero/2.png' },
-  { img: '/images/Hero/3.png' },
-  { img: '/images/Hero/4.png' },
-  { img: '/images/Hero/5.png' },
+  { img: '/images/Hero/1.png', fallback: 'QuickZone Delivery Service' },
+  { img: '/images/Hero/2.png', fallback: 'Fast & Reliable Delivery' },
+  { img: '/images/Hero/3.png', fallback: 'Professional Service' },
+  { img: '/images/Hero/4.png', fallback: 'QuickZone Excellence' },
+  { img: '/images/Hero/5.png', fallback: 'Your Trusted Partner' },
 ];
 
 function Hero() {
@@ -38,7 +38,28 @@ function Hero() {
                 className={`service-slide flex flex-col items-center justify-center p-0 transition-opacity duration-700 ${idx === current ? 'opacity-100' : 'opacity-0 absolute inset-0 pointer-events-none'}`}
                 style={{ minHeight: 320 }}
               >
-                <img src={slide.img} alt={`QuickZone Slide ${idx + 1}`} className="w-full h-80 object-contain drop-shadow-lg rounded-xl" />
+                <div className="w-full h-80 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center relative overflow-hidden">
+                  <img 
+                    src={slide.img} 
+                    alt={`QuickZone Slide ${idx + 1}`} 
+                    className="w-full h-full object-cover drop-shadow-lg rounded-xl"
+                    onError={(e) => {
+                      console.error('Image failed to load:', slide.img);
+                      e.target.style.display = 'none';
+                      // Show fallback text
+                      const fallbackDiv = e.target.nextElementSibling;
+                      if (fallbackDiv) {
+                        fallbackDiv.style.display = 'flex';
+                      }
+                    }}
+                  />
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white text-2xl font-bold text-center p-4 rounded-xl"
+                    style={{ display: 'none' }}
+                  >
+                    {slide.fallback}
+                  </div>
+                </div>
               </div>
             ))}
             {/* Navigation Arrows */}
