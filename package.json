@@ -11,7 +11,7 @@
     "vercel-build": "vite build"
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/postcss": "^4.1.13",
     "@tanstack/react-query": "^5.81.5",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",

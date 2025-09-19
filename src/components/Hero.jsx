@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 const slides = [
-  { img: '/images/Hero/1.png', fallback: 'QuickZone Delivery Service' },
-  { img: '/images/Hero/2.png', fallback: 'Fast & Reliable Delivery' },
-  { img: '/images/Hero/3.png', fallback: 'Professional Service' },
-  { img: '/images/Hero/4.png', fallback: 'QuickZone Excellence' },
-  { img: '/images/Hero/5.png', fallback: 'Your Trusted Partner' },
+  { img: './images/Hero/1.png', fallback: 'QuickZone Delivery Service' },
+  { img: './images/Hero/2.png', fallback: 'Fast & Reliable Delivery' },
+  { img: './images/Hero/3.png', fallback: 'Professional Service' },
+  { img: './images/Hero/4.png', fallback: 'QuickZone Excellence' },
+  { img: './images/Hero/5.png', fallback: 'Your Trusted Partner' },
 ];
 
 function Hero() {

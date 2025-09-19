@@ -30,7 +30,7 @@ function Header() {
       </div>
       
       <div className="header-main">
-        <img src="/images/quickzonelogo.png" alt="QuickZone Logo" className="logo" />
+        <img src="./images/quickzonelogo.png" alt="QuickZone Logo" className="logo" />
         <p className="header-subtitle">{t('subtitle')}</p>
       </div>
       
